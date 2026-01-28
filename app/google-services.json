@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "210376071919",
+    "project_id": "device-streaming-bafa1723",
+    "storage_bucket": "device-streaming-bafa1723.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:210376071919:android:1cf1a5c506cd78d6a8191a",
+        "android_client_info": {
+          "package_name": "com.drpsphca.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFe5bXbQMeDVnNqnUjS6h1dyaAvedc0Bk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

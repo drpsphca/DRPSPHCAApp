@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.drpsphca.app" />
+                  <option name="mobileSdkAppId" value="1:210376071919:android:1cf1a5c506cd78d6a8191a" />
+                  <option name="projectId" value="device-streaming-bafa1723" />
+                  <option name="projectNumber" value="210376071919" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

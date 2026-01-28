@@ -8,6 +8,7 @@ import com.drpsphca.app.data.WordPressApi
 import com.drpsphca.app.data.WordPressClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 sealed interface PostUiState {
@@ -22,13 +23,20 @@ class WordPressViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
     val uiState: StateFlow<PostUiState> = _uiState
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
-        fetchPosts()
+        fetchPosts(isRefreshing = false)
     }
 
-    fun fetchPosts() {
+    fun fetchPosts(isRefreshing: Boolean) {
         viewModelScope.launch {
-            _uiState.value = PostUiState.Loading
+            if (isRefreshing) {
+                _isRefreshing.value = true
+            } else {
+                _uiState.value = PostUiState.Loading
+            }
             try {
                 val api = WordPressClient.retrofit.create(WordPressApi::class.java)
                 val categories = api.getCategories()
@@ -42,6 +50,7 @@ class WordPressViewModel : ViewModel() {
                 Log.e("WordPressViewModel", "Error fetching posts", e)
                 _uiState.value = PostUiState.Error(e.message ?: "Unknown error")
             }
+            _isRefreshing.value = false
         }
     }
 

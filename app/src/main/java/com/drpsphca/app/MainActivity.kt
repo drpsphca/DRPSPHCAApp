@@ -36,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -104,7 +105,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 
                 LaunchedEffect(uiState, isCurrentDestination) {
                     if (isCurrentDestination && uiState is PostUiState.PostSuccess) {
-                        wordPressViewModel.fetchPosts()
+                        wordPressViewModel.fetchPosts(false)
                     }
                 }
                 Scaffold(
@@ -122,31 +123,38 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 ) {
                     innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
-                        when (val state = uiState) {
-                            is PostUiState.Loading -> {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
-                                }
-                            }
+                        val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
 
-                            is PostUiState.Success -> {
-                                PostList(posts = state.posts, navController = navController)
-                            }
-
-                            is PostUiState.Error -> {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(text = state.message)
-                                    Button(onClick = { wordPressViewModel.fetchPosts() }) {
-                                        Text("Retry")
+                        PullToRefreshBox(
+                            isRefreshing = isRefreshing,
+                            onRefresh = { wordPressViewModel.fetchPosts(true) }
+                        ) {
+                            when (val state = uiState) {
+                                is PostUiState.Loading -> {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
                                     }
                                 }
-                            }
 
-                            is PostUiState.PostSuccess -> { /* Do Nothing while reloading */ }
+                                is PostUiState.Success -> {
+                                    PostList(posts = state.posts, navController = navController)
+                                }
+
+                                is PostUiState.Error -> {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(text = state.message)
+                                        Button(onClick = { wordPressViewModel.fetchPosts(false) }) {
+                                            Text("Retry")
+                                        }
+                                    }
+                                }
+
+                                is PostUiState.PostSuccess -> { /* Do Nothing while reloading */ }
+                            }
                         }
                     }
                 }
@@ -210,11 +218,11 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 
 @Composable
 fun PostList(posts: List<Post>, navController: NavController) {
-    BoxWithConstraints {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         if (maxWidth >= 600.dp) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -224,7 +232,7 @@ fun PostList(posts: List<Post>, navController: NavController) {
             }
         } else {
             LazyColumn(
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(posts) { post ->
@@ -262,7 +270,8 @@ fun PostItem(post: Post, navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = android.text.Html.fromHtml(post.excerpt.rendered, android.text.Html.FROM_HTML_MODE_COMPACT).toString(), style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                post.embedded?.terms?.getOrNull(1)?.let { tags ->
+                val tags = post.embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }
+                if (tags != null) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
