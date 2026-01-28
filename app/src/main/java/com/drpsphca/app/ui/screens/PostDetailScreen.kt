@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import com.drpsphca.app.data.Post
+import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
 @Composable
-fun PostDetailScreen(post: Post) {
+fun PostDetailScreen(post: PostDetailUiModel) {
     val isDarkTheme = isSystemInDarkTheme()
 
     val htmlContent = """
@@ -34,8 +34,8 @@ fun PostDetailScreen(post: Post) {
             </style>
         </head>
         <body>
-            <h1>${post.title.rendered}</h1>
-            ${post.content.rendered}
+            <h1>${post.plainTitle}</h1>
+            ${post.content}
         </body>
         </html>
     """

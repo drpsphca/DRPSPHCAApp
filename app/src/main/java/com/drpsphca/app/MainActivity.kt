@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -59,13 +61,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
-import com.drpsphca.app.data.Post
 import com.drpsphca.app.ui.screens.PostDetailScreen
 import com.drpsphca.app.ui.theme.DRPSPHCATheme
+import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import com.drpsphca.app.ui.viewmodel.PostUiState
 import com.drpsphca.app.ui.viewmodel.WordPressViewModel
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
@@ -112,8 +112,8 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     topBar = { 
                         CenterAlignedTopAppBar(
                             title = {
-                                AsyncImage(
-                                    model = "https://drpsphca.com/wp-content/uploads/2025/11/DRPS-PHCA-Website-2025-Logo-Gen-11-Theme-Main-CC-scaled.png",
+                                Image(
+                                    painter = painterResource(id = R.drawable.logo),
                                     contentDescription = "DRPSPHCA Blog",
                                     modifier = Modifier.height(40.dp)
                                 )
@@ -217,7 +217,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 }
 
 @Composable
-fun PostList(posts: List<Post>, navController: NavController) {
+fun PostList(posts: List<PostItemUiModel>, navController: NavController) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         if (maxWidth >= 600.dp) {
             LazyVerticalGrid(
@@ -244,44 +244,40 @@ fun PostList(posts: List<Post>, navController: NavController) {
 }
 
 @Composable
-fun PostItem(post: Post, navController: NavController) {
+fun PostItem(post: PostItemUiModel, navController: NavController) {
     Card(modifier = Modifier
         .padding(8.dp)
         .clickable { navController.navigate("postdetail/${post.id}") }) {
         Column {
-            post.embedded?.featuredMedia?.firstOrNull()?.sourceUrl?.let {
+            post.imageUrl?.let {
                 AsyncImage(
                     model = it,
-                    contentDescription = post.title.rendered,
+                    contentDescription = post.plainTitle,
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.Crop
                 )
             }
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = android.text.Html.fromHtml(post.title.rendered, android.text.Html.FROM_HTML_MODE_COMPACT).toString(),
+                    text = post.plainTitle,
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                val formattedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(post.date)?.let {
-                    SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it)
-                } ?: post.date
-                Text(text = formattedDate, style = MaterialTheme.typography.bodySmall)
+                Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = android.text.Html.fromHtml(post.excerpt.rendered, android.text.Html.FROM_HTML_MODE_COMPACT).toString(), style = MaterialTheme.typography.bodyMedium)
+                Text(text = post.plainExcerpt, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                val tags = post.embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }
-                if (tags != null) {
+                if (post.tags.isNotEmpty()) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(tags) { tag ->
+                        items(post.tags) { tag ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Text(
-                                    text = android.text.Html.fromHtml(tag.name, android.text.Html.FROM_HTML_MODE_COMPACT).toString(),
+                                    text = tag,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
