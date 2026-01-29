@@ -13,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "phcaapp-unstable-26.01.29.3"
+        versionName = "phcaapp-unstable-26.01.29.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -29,6 +29,11 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("debug")
+            // Disable profileinstaller for release builds during development/testing
+            // This helps avoid INSTALL_BASELINE_PROFILE_FAILED errors on some devices.
+            // profileinstaller {
+            //     enabled = false
+            // }
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -58,6 +63,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
     implementation("androidx.compose.material:material-icons-extended")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

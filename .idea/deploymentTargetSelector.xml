@@ -4,24 +4,24 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-01-28T08:24:16.541082400Z">
+        <DropdownSelection timestamp="2026-01-29T11:48:56.499707700Z">
           <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=10HE6RFDS3000S1" />
-            </handle>
+            <template>
+              <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=samsung_lab_q6q/34" />
+            </template>
           </Target>
         </DropdownSelection>
         <DialogSelection>
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Swee Fong Loo\.android\avd\Pixel_Tablet.avd" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=RRCT802BPQM" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=RRCT802BPQM" />
-              </handle>
+              <template>
+                <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=samsung_lab_q6q/34" />
+              </template>
             </Target>
           </targets>
         </DialogSelection>

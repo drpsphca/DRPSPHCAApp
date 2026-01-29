@@ -90,7 +90,7 @@ class WordPressViewModel : ViewModel() {
                     val categories = wordPressApi.getCategories()
                     _categories.value = categories
 
-                    doFetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
+                    doFetchPosts(isRefreshing = false, page = 1, perPage = 20, forHome = true)
                     doFetchNewsletters(perPage = 5)
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching categories", e)
@@ -101,7 +101,7 @@ class WordPressViewModel : ViewModel() {
         }
     }
 
-    fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 10, forHome: Boolean = false) {
+    fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 20, forHome: Boolean = false) {
         viewModelScope.launch {
             mutex.withLock {
                 doFetchPosts(isRefreshing, page, perPage, forHome)

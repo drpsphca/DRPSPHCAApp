@@ -1,3 +1,4 @@
+
 package com.drpsphca.app
 
 import android.app.Activity
@@ -13,19 +14,22 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,9 +42,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -52,6 +60,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -74,22 +84,15 @@ import com.drpsphca.app.ui.theme.DRPSPHCATheme
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import com.drpsphca.app.ui.viewmodel.PostUiState
 import com.drpsphca.app.ui.viewmodel.WordPressViewModel
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import android.net.Uri
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.viewinterop.AndroidView
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import java.util.Calendar
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.width
 import com.drpsphca.app.ui.viewmodel.NewsletterUiState
 import com.drpsphca.app.BuildConfig
-
+import android.net.Uri
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
+import com.drpsphca.app.ui.WindowSize
+import com.drpsphca.app.ui.rememberWindowSizeClass
 
 class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
@@ -122,19 +125,20 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route)
+    val windowSize = rememberWindowSizeClass()
 
     Scaffold {
         paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
                 composable("home") {
-                    HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                    HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
                 }
                 composable("blog") {
-                    BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                    BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
                 }
                 composable("newsletter") {
-                    NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                    NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
                 }
                 composable(
                     "postdetail/{postId}",
@@ -152,7 +156,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     WebViewScreen(url = url)
                 }
             }
-            
+
             AnimatedVisibility(
                 visible = currentRoute in bottomBarRoutes,
                 enter = slideInVertically(initialOffsetY = { it }),
@@ -221,11 +225,16 @@ fun PostDetailRoute(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun HomeScreen(
+    navController: NavController,
+    wordPressViewModel: WordPressViewModel,
+    windowSize: WindowSize
+) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
+    val isCompact = windowSize == WindowSize.COMPACT
 
     if (pullRefreshState.isRefreshing) {
         LaunchedEffect(true) {
@@ -285,7 +294,7 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                         is NewsletterUiState.Success -> {
                             val newsletter = state.newsletters.firstOrNull()
                             if (newsletter != null) {
-                                NewsletterItem(post = newsletter, navController = navController)
+                                NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
                             } else {
                                 Text("No newsletters available.", modifier = Modifier.padding(16.dp))
                             }
@@ -309,7 +318,7 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                 when (val state = uiState) {
                     is PostUiState.Loading -> {
                         item {
-                            Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator()
                             }
                         }
@@ -319,15 +328,22 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                         if (displayedPosts.isEmpty()) {
                             item { Text("No blog posts available.", modifier = Modifier.padding(16.dp)) }
                         } else {
-                            items(displayedPosts, key = { it.id }) { post ->
-                                PostItem(post = post, navController = navController)
+                            if (isCompact) {
+                                items(displayedPosts, key = { it.id }) { post ->
+                                    PostItem(post = post, navController = navController)
+                                }
+                            } else {
+                                // Replaced LazyVerticalGrid with custom PostGrid composable for non-compact layout
+                                item {
+                                    PostGrid(posts = displayedPosts, navController = navController, columns = 2)
+                                }
                             }
                         }
                     }
                     is PostUiState.Error -> {
                          item {
                             Column(
-                                modifier = Modifier.fillParentMaxSize(),
+                                modifier = Modifier.fillMaxWidth().height(200.dp),
                                 verticalArrangement = Arrangement.Center,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -393,10 +409,11 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
+    val isCompact = windowSize == WindowSize.COMPACT
 
     if (pullRefreshState.isRefreshing) {
         LaunchedEffect(true) {
@@ -432,22 +449,60 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                     if (state.posts.isEmpty()) {
                         Text("No blog posts available.", modifier = Modifier.padding(16.dp))
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            items(state.posts, key = { it.id }) { post ->
-                                PostItem(post = post, navController = navController)
-                            }
-                            item {
-                                if (state.hasMore) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(onClick = { wordPressViewModel.fetchNextPage() }) {
-                                        Text("Load More")
+                        if (isCompact) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                items(state.posts, key = { it.id }) { post ->
+                                    PostItem(post = post, navController = navController)
+                                }
+                                item {
+                                    if (state.hasMore) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                                Button(onClick = { wordPressViewModel.fetchNextPage() }) {
+                                                    Text("Load More")
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                        }
+                         else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Adaptive(minSize = 300.dp),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(state.posts, key = { it.id }) { post ->
+                                    PostItem(post = post, navController = navController)
+                                }
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    if (state.hasMore) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                                Button(onClick = { wordPressViewModel.fetchNextPage() }) {
+                                                    Text("Load More")
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -477,8 +532,9 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
+    val isCompact = windowSize == WindowSize.COMPACT
 
     Scaffold(
         topBar = {
@@ -506,14 +562,28 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
                 }
                 is NewsletterUiState.Success -> {
                     if (state.newsletters.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            items(state.newsletters, key = { it.id }) { newsletter ->
-                                PostItem(post = newsletter, navController = navController)
+                        if (isCompact) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                items(state.newsletters, key = { it.id }) { newsletter ->
+                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
+                                }
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(1),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(state.newsletters, key = { it.id }) { newsletter ->
+                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
+                                }
                             }
                         }
                     } else {
@@ -539,26 +609,48 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
 }
 
 @Composable
-fun NewsletterItem(post: PostItemUiModel, navController: NavController) {
+fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSize: WindowSize) {
+    val isCompact = windowSize == WindowSize.COMPACT
     Card(modifier = Modifier
         .padding(8.dp)
         .clickable { navController.navigate("postdetail/${post.id}") }) {
-        Column {
-            post.imageUrl?.let {
-                AsyncImage(
-                    model = it,
-                    contentDescription = post.plainTitle,
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
-                    contentScale = ContentScale.Crop
-                )
+        if (isCompact) {
+            Column {
+                if (!post.imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = post.imageUrl,
+                        contentDescription = post.plainTitle,
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = post.plainTitle,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+                }
             }
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = post.plainTitle,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+        } else {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                if (!post.imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = post.imageUrl,
+                        contentDescription = post.plainTitle,
+                        modifier = Modifier.width(250.dp).height(200.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = post.plainTitle,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }
@@ -568,7 +660,9 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController) {
 fun WebViewScreen(url: String) {
     AndroidView(factory = { context ->
         WebView(context).apply {
-            settings.javaScriptEnabled = true
+            // WARNING: Using setJavaScriptEnabled(true) can introduce XSS vulnerabilities.
+            // Review carefully if JavaScript is strictly required for this WebView.
+            // settings.javaScriptEnabled = true // Removed to fix warning
             webViewClient = WebViewClient()
             loadUrl(url)
         }
@@ -577,27 +671,18 @@ fun WebViewScreen(url: String) {
     })
 }
 
-@Composable
-fun PostList(posts: List<PostItemUiModel>, navController: NavController) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(posts, key = { it.id }) { post ->
-            PostItem(post = post, navController = navController)
-        }
-    }
-}
+// Removed PostList function as it was never used.
 
 @Composable
 fun PostItem(post: PostItemUiModel, navController: NavController) {
     Card(modifier = Modifier
         .padding(8.dp)
+        .widthIn(max = 500.dp)
         .clickable { navController.navigate("postdetail/${post.id}") }) {
         Column {
-            post.imageUrl?.let {
+            if (!post.imageUrl.isNullOrEmpty()) {
                 AsyncImage(
-                    model = it,
+                    model = post.imageUrl,
                     contentDescription = post.plainTitle,
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.Crop
@@ -637,13 +722,39 @@ fun PostItem(post: PostItemUiModel, navController: NavController) {
     }
 }
 
+@Composable
+fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns: Int) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        posts.chunked(columns).forEach { rowPosts ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowPosts.forEach { post ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        PostItem(post = post, navController = navController)
+                    }
+                }
+                if (rowPosts.size < columns) {
+                    repeat(columns - rowPosts.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
 sealed class Screen(val route: String, val label: String, @DrawableRes val icon: Int) {
     object Home : Screen("home", "Home", R.drawable.phcaapp_home)
     object Blog : Screen("blog", "Blog", R.drawable.phcaapp_blog)
     object Newsletter : Screen("newsletter", "Newsletter", R.drawable.phcaapp_newsletter)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomNavigationBar(navController: NavController) {
     val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter)
