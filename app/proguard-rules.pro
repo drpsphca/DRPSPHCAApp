@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard rules for DRPSPHCA project.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- General ---
+# Keep attributes for debugging and for reflection-based libraries.
+-keepattributes Signature,InnerClasses,*Annotation*,SourceFile,LineNumberTable
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Kotlin ---
+# Preserve Kotlin metadata, which is crucial for reflection on Kotlin classes.
+-keep,allowobfuscation,allowshrinking class kotlin.Metadata { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Gson ---
+# This is the standard, recommended configuration for Gson.
+# It prevents ProGuard from stripping information needed for serialization/deserialization.
+# The most important rules are for TypeToken, which is how Gson handles generics (e.g., List<Post>).
+# This is the key fix for the "ParameterizedType" crash.
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
+
+# Keep all of your data model classes in the 'data' package.
+-keep class com.drpsphca.app.data.** { *; }
+
+# --- Retrofit & OkHttp ---
+# Keep networking library classes.
+-dontwarn retrofit2.BuiltInConverters
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-keep class okio.** { *; }
+
+# --- Coroutines ---
+-keepclassmembers class kotlinx.coroutines.internal.MainDispatcherFactory {
+    public static *;
+}
+-keep class kotlinx.coroutines.android.AndroidDispatcherFactory
+-keep class kotlinx.coroutines.android.AndroidExceptionPreHandler
+
+# --- Coil ---
+-keep class coil.** { *; }

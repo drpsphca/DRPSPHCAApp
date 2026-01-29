@@ -42,7 +42,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -52,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -223,6 +225,20 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+
+    if (pullRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
+            wordPressViewModel.fetchNewsletters(perPage = 1)
+        }
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (!isRefreshing) {
+            pullRefreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(Unit) {
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
@@ -241,13 +257,10 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
             )
         }
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { 
-                wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
-                wordPressViewModel.fetchNewsletters(perPage = 1)
-            },
-            modifier = Modifier.padding(innerPadding)
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -370,6 +383,10 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                     }
                 }
             }
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
@@ -379,6 +396,19 @@ fun HomeScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+
+    if (pullRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            wordPressViewModel.fetchPosts(true, page = 1, perPage = 20)
+        }
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (!isRefreshing) {
+            pullRefreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(Unit) {
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
@@ -391,58 +421,56 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { wordPressViewModel.fetchPosts(true, page = 1, perPage = 20) },
-                modifier = Modifier.weight(1f)
-            ) {
-                when (val state = uiState) {
-                    is PostUiState.Loading -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+        Box(modifier = Modifier.padding(innerPadding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
+            when (val state = uiState) {
+                is PostUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
-                    is PostUiState.Success -> {
-                        if (state.posts.isEmpty()) {
-                            Text("No blog posts available.", modifier = Modifier.padding(16.dp))
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                items(state.posts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController)
-                                }
-                                item {
-                                    if (state.hasMore) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(onClick = { wordPressViewModel.fetchNextPage() }) {
-                                            Text("Load More")
-                                        }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    is PostUiState.Error -> {
-                        Column(
+                }
+                is PostUiState.Success -> {
+                    if (state.posts.isEmpty()) {
+                        Text("No blog posts available.", modifier = Modifier.padding(16.dp))
+                    } else {
+                        LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = state.message)
-                            Button(onClick = { wordPressViewModel.fetchPosts(false, page = 1, perPage = 20) }) {
-                                Text("Retry")
+                            items(state.posts, key = { it.id }) { post ->
+                                PostItem(post = post, navController = navController)
+                            }
+                            item {
+                                if (state.hasMore) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(onClick = { wordPressViewModel.fetchNextPage() }) {
+                                        Text("Load More")
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
                             }
                         }
                     }
-                    is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
                 }
+                is PostUiState.Error -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = state.message)
+                        Button(onClick = { wordPressViewModel.fetchPosts(false, page = 1, perPage = 20) }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+                is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
             }
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
@@ -551,27 +579,12 @@ fun WebViewScreen(url: String) {
 
 @Composable
 fun PostList(posts: List<PostItemUiModel>, navController: NavController) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (maxWidth >= 600.dp) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(posts, key = { it.id }) { post ->
-                    PostItem(post = post, navController = navController)
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(posts, key = { it.id }) { post ->
-                    PostItem(post = post, navController = navController)
-                }
-            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(posts, key = { it.id }) { post ->
+            PostItem(post = post, navController = navController)
         }
     }
 }
@@ -664,7 +677,7 @@ fun BottomNavigationBar(navController: NavController) {
                             navController.navigate(screen.route) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     saveState = true
-                                }
+                                 }
                                 launchSingleTop = true
                                 restoreState = true
                             }

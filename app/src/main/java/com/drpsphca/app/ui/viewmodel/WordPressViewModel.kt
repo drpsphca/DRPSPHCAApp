@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.drpsphca.app.data.Category
 import com.drpsphca.app.data.Post
+import com.drpsphca.app.data.Rendered
 import com.drpsphca.app.data.WordPressApi
 import com.drpsphca.app.data.WordPressClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -71,9 +74,10 @@ class WordPressViewModel : ViewModel() {
 
     private val _blogPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
     private val _currentPage = MutableStateFlow(1)
-    private val _totalPages = MutableStateFlow(1)
 
     private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    private val wordPressApi = WordPressClient.api
+    private val mutex = Mutex()
 
     init {
         fetchCategories()
@@ -81,91 +85,112 @@ class WordPressViewModel : ViewModel() {
 
     private fun fetchCategories() {
         viewModelScope.launch {
-            try {
-                val api = WordPressClient.retrofit.create(WordPressApi::class.java)
-                _categories.value = api.getCategories()
-                fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
-                fetchNewsletters(perPage = 5)
-            } catch (e: Exception) {
-                Log.e("WordPressViewModel", "Error fetching categories", e)
-                _uiState.value = PostUiState.Error(e.message ?: "Unknown error")
-                _newsletterUiState.value = NewsletterUiState.Error(e.message ?: "Unknown error")
+            mutex.withLock {
+                try {
+                    val categories = wordPressApi.getCategories()
+                    _categories.value = categories
+
+                    doFetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
+                    doFetchNewsletters(perPage = 5)
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error fetching categories", e)
+                    _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+                    _newsletterUiState.update { NewsletterUiState.Error(e.message ?: "Unknown error") }
+                }
             }
         }
     }
 
     fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 10, forHome: Boolean = false) {
         viewModelScope.launch {
-            if (isRefreshing) {
-                _isRefreshing.value = true
-                _currentPage.value = 1 // Reset page for refresh
-            } else if (page == 1) {
-                _uiState.value = PostUiState.Loading
+            mutex.withLock {
+                doFetchPosts(isRefreshing, page, perPage, forHome)
             }
+        }
+    }
 
+    private suspend fun doFetchPosts(isRefreshing: Boolean, page: Int, perPage: Int, forHome: Boolean) {
+        if (isRefreshing) {
+            _isRefreshing.value = true
+            _currentPage.value = 1
+        } else if (page == 1) {
+            _uiState.update { PostUiState.Loading }
+        }
+
+        try {
             val blogCategory = _categories.value.find { it.slug == "blog" }
             if (blogCategory == null) {
-                _uiState.value = PostUiState.Error("Blog category not found")
+                _uiState.update { PostUiState.Error("Blog category not found") }
+                return
+            }
+
+            val posts = wordPressApi.getPosts(page = page, perPage = perPage, categories = blogCategory.id)
+
+            val currentPosts = if (page == 1 || forHome) emptyList() else _blogPosts.value
+            val newPosts = currentPosts + posts.map { it.toUiModel() }
+            _blogPosts.value = newPosts
+            _currentPage.value = page
+
+            val hasMore = posts.size == perPage
+            _uiState.update { PostUiState.Success(newPosts, hasMore) }
+        } catch (e: Exception) {
+            Log.e("WordPressViewModel", "Error fetching posts", e)
+            _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+        } finally {
+            if (isRefreshing) {
                 _isRefreshing.value = false
-                return@launch
             }
-
-            try {
-                val api = WordPressClient.retrofit.create(WordPressApi::class.java)
-                val posts = api.getPosts(page = page, perPage = perPage, categories = blogCategory.id)
-
-                val currentPosts = if (page == 1 || forHome) emptyList() else _blogPosts.value
-                val newPosts = currentPosts + posts.map { it.toUiModel() }
-                _blogPosts.value = newPosts
-                _currentPage.value = page
-
-                val hasMore = posts.size == perPage
-                _uiState.value = PostUiState.Success(_blogPosts.value, hasMore)
-            } catch (e: Exception) {
-                Log.e("WordPressViewModel", "Error fetching posts", e)
-                _uiState.value = PostUiState.Error(e.message ?: "Unknown error")
-            }
-            _isRefreshing.value = false
         }
     }
 
     fun fetchNextPage() {
-        if (_uiState.value is PostUiState.Success && (_uiState.value as PostUiState.Success).hasMore) {
-            val nextPage = _currentPage.value + 1
-            fetchPosts(isRefreshing = false, page = nextPage, perPage = 20)
+        viewModelScope.launch {
+            mutex.withLock {
+                val uiStateValue = _uiState.value
+                if (uiStateValue is PostUiState.Success && uiStateValue.hasMore) {
+                    val nextPage = _currentPage.value + 1
+                    doFetchPosts(isRefreshing = false, page = nextPage, perPage = 20, forHome = false)
+                }
+            }
         }
     }
 
     fun fetchNewsletters(perPage: Int = 5) {
         viewModelScope.launch {
-            _newsletterUiState.value = NewsletterUiState.Loading
+            mutex.withLock {
+                doFetchNewsletters(perPage)
+            }
+        }
+    }
+
+    private suspend fun doFetchNewsletters(perPage: Int) {
+        _newsletterUiState.update { NewsletterUiState.Loading }
+        try {
             val newsletterCategory = _categories.value.find { it.slug == "newsletter" }
 
             if (newsletterCategory == null) {
-                _newsletterUiState.value = NewsletterUiState.Error("Newsletter category not found. Assuming newsletters are standard posts under a 'newsletter' category slug.")
-                return@launch
+                _newsletterUiState.update { NewsletterUiState.Error("Newsletter category not found. Assuming newsletters are standard posts under a 'newsletter' category slug.") }
+                return
             }
-            try {
-                val api = WordPressClient.retrofit.create(WordPressApi::class.java)
-                val newsletters = api.getPosts(categories = newsletterCategory.id, perPage = perPage)
-                _newsletterUiState.value = NewsletterUiState.Success(newsletters.map { it.toUiModel() })
-            } catch (e: Exception) {
-                Log.e("WordPressViewModel", "Error fetching newsletters", e)
-                _newsletterUiState.value = NewsletterUiState.Error(e.message ?: "Unknown error")
-            }
+            val newsletters = wordPressApi.getPosts(categories = newsletterCategory.id, perPage = perPage)
+            _newsletterUiState.update { NewsletterUiState.Success(newsletters.map { it.toUiModel() }) }
+        } catch (e: Exception) {
+            Log.e("WordPressViewModel", "Error fetching newsletters", e)
+            _newsletterUiState.update { NewsletterUiState.Error(e.message ?: "Unknown error") }
         }
     }
 
     fun fetchPost(id: Int) {
         viewModelScope.launch {
-            _uiState.value = PostUiState.Loading
-            try {
-                val api = WordPressClient.retrofit.create(WordPressApi::class.java)
-                val post = api.getPost(id)
-                _uiState.value = PostUiState.PostSuccess(post.toDetailUiModel())
-            } catch (e: Exception) {
-                Log.e("WordPressViewModel", "Error fetching post", e)
-                _uiState.value = PostUiState.Error(e.message ?: "Unknown error")
+            mutex.withLock {
+                _uiState.update { PostUiState.Loading }
+                try {
+                    val post = wordPressApi.getPost(id)
+                    _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel()) }
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error fetching post", e)
+                    _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+                }
             }
         }
     }
@@ -200,11 +225,12 @@ class WordPressViewModel : ViewModel() {
         val tags = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }?.map {
             Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
         } ?: emptyList()
+        val contentAsString = content.rendered
 
         return PostDetailUiModel(
             formattedDate = formattedDate,
             plainTitle = plainTitle,
-            content = content.rendered,
+            content = contentAsString,
             imageUrl = imageUrl,
             tags = tags
         )
