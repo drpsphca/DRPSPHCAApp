@@ -8,8 +8,9 @@ interface WordPressApi {
     @GET("posts")
     suspend fun getPosts(
         @Query("_embed") embed: Boolean = true,
-        @Query("categories") categories: Int,
-        @Query("per_page") perPage: Int
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 10,
+        @Query("categories") categories: Int? = null
     ): List<Post>
 
     @GET("categories")
