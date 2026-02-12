@@ -383,14 +383,14 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             TextButton(onClick = {
-                                val encodedUrl = Uri.encode("https://drpsphca.com/terms")
+                                val encodedUrl = Uri.encode("https://legal.drpsphca.com/terms")
                                 navController.navigate("webview/$encodedUrl")
                             }) {
                                 Text("Terms of Use")
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             TextButton(onClick = {
-                                val encodedUrl = Uri.encode("https://drpsphca.com/privacy")
+                                val encodedUrl = Uri.encode("https://legal.drpsphca.com/privacy")
                                 navController.navigate("webview/$encodedUrl")
                             }) {
                                 Text("Privacy Policy")
