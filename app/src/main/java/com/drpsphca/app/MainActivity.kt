@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,11 +95,19 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
+import com.huawei.hms.ads.AdParam
+import com.huawei.hms.ads.BannerAdSize
+import com.huawei.hms.ads.HwAds
+import com.huawei.hms.ads.banner.BannerView
 
 class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Huawei Ads SDK
+        HwAds.init(this)
+        
         setContent {
             DRPSPHCATheme {
                 val view = LocalView.current
@@ -127,43 +137,47 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route)
     val windowSize = rememberWindowSizeClass()
 
-    Scaffold {
-        paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            NavHost(navController = navController, startDestination = "home", modifier = Modifier.fillMaxSize()) {
-                composable("home") {
-                    HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
-                }
-                composable("blog") {
-                    BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
-                }
-                composable("newsletter") {
-                    NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
-                }
-                composable(
-                    "postdetail/{postId}",
-                    arguments = listOf(navArgument("postId") { type = NavType.IntType })
-                ) { backStackEntry ->
-                    val postId = backStackEntry.arguments?.getInt("postId")
-                    PostDetailRoute(
-                        wordPressViewModel = wordPressViewModel,
-                        navController = navController,
-                        postId = postId
-                    )
-                }
-                composable("webview/{url}") { backStackEntry ->
-                    val url = backStackEntry.arguments?.getString("url") ?: "about:blank"
-                    WebViewScreen(url = url)
-                }
-            }
-
+    Scaffold(
+        bottomBar = {
             AnimatedVisibility(
                 visible = currentRoute in bottomBarRoutes,
                 enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it }),
-                modifier = Modifier.align(Alignment.BottomCenter)
+                exit = slideOutVertically(targetOffsetY = { it })
             ) {
                 BottomNavigationBar(navController = navController)
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            composable("home") {
+                HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+            }
+            composable("blog") {
+                BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+            }
+            composable("newsletter") {
+                NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+            }
+            composable(
+                "postdetail/{postId}",
+                arguments = listOf(navArgument("postId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getInt("postId")
+                PostDetailRoute(
+                    wordPressViewModel = wordPressViewModel,
+                    navController = navController,
+                    postId = postId
+                )
+            }
+            composable("webview/{url}") { backStackEntry ->
+                val url = backStackEntry.arguments?.getString("url") ?: "about:blank"
+                WebViewScreen(url = url)
             }
         }
     }
@@ -253,29 +267,30 @@ fun HomeScreen(
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo),
-                        contentDescription = "DRPSPHCA Blog",
-                        modifier = Modifier.height(40.dp)
-                    )
-                }
-            )
-        }
-    ) { innerPadding ->
+    Column {
+        CenterAlignedTopAppBar(
+            title = {
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "DRPSPHCA Blog",
+                    modifier = Modifier.height(40.dp)
+                )
+            }
+        )
         Box(
             modifier = Modifier
-                .padding(innerPadding)
+                .fillMaxSize()
                 .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp), // Add padding to avoid overlap with floating bar
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Banner Ad
+                item {
+                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                }
+
                 // Newsletter Section
                 item {
                     Text(
@@ -399,12 +414,30 @@ fun HomeScreen(
                     }
                 }
             }
-            PullToRefreshContainer(
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+            if (pullRefreshState.isRefreshing || pullRefreshState.progress > 0f) {
+                PullToRefreshContainer(
+                    state = pullRefreshState,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                )
+            }
         }
     }
+}
+
+@Composable
+fun PetalBannerAd(modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            BannerView(context).apply {
+                adId = BuildConfig.PETAL_ADS_UNIT_ID
+                bannerAdSize = BannerAdSize.BANNER_SIZE_320_50
+                loadAd(AdParam.Builder().build())
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -431,15 +464,13 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Blog") }
-            )
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
+    Column {
+        CenterAlignedTopAppBar(
+            title = { Text("Blog") }
+        )
+        Box(modifier = Modifier.fillMaxSize().nestedScroll(pullRefreshState.nestedScrollConnection)) {
             when (val state = uiState) {
+                // ... same states as before
                 is PostUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -452,10 +483,12 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                         if (isCompact) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                item {
+                                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                                }
                                 items(state.posts, key = { it.id }) { post ->
                                     PostItem(post = post, navController = navController)
                                 }
@@ -481,10 +514,12 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                             LazyVerticalGrid(
                                 columns = GridCells.Adaptive(minSize = 300.dp),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                                }
                                 items(state.posts, key = { it.id }) { post ->
                                     PostItem(post = post, navController = navController)
                                 }
@@ -522,10 +557,14 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                 }
                 is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
             }
-            PullToRefreshContainer(
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+            if (pullRefreshState.isRefreshing || pullRefreshState.progress > 0f) {
+                PullToRefreshContainer(
+                    state = pullRefreshState,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                )
+            }
         }
     }
 }
@@ -536,19 +575,17 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Newsletter") }
-            )
-        }
-    ) { innerPadding ->
+    Column {
+        CenterAlignedTopAppBar(
+            title = { Text("Newsletter") }
+        )
         Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            // ... same items as before
+
             Text(
                 text = "Latest Newsletters",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -565,7 +602,6 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
                         if (isCompact) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -577,7 +613,6 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(1),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -764,51 +799,51 @@ fun BottomNavigationBar(navController: NavController) {
         Screen.Newsletter.route to Color(0xFFDA048F)
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+    NavigationBar(
+        containerColor = Color.Gray,
+        tonalElevation = 0.dp
     ) {
-        NavigationBar(
-            modifier = Modifier.clip(RoundedCornerShape(24.dp)),
-            containerColor = Color.Gray
-        ) {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-            items.forEach { screen ->
-                val isSelected = currentRoute == screen.route
-                val selectedColor = selectedColors[screen.route] ?: MaterialTheme.colorScheme.primary
-                val tint = if (isSelected) selectedColor else Color.White
+        items.forEach { screen ->
+            val isSelected = currentRoute == screen.route
+            val selectedColor = selectedColors[screen.route] ?: MaterialTheme.colorScheme.primary
+            val tint = if (isSelected) selectedColor else Color.White
 
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick = {
-                        if (currentRoute != screen.route) {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                 }
-                                launchSingleTop = true
-                                restoreState = true
+            NavigationBarItem(
+                selected = isSelected,
+                onClick = {
+                    if (currentRoute != screen.route) {
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
                             }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    },
-                    label = { Text(screen.label) },
-                    icon = {
-                        Image(
-                            painter = painterResource(id = screen.icon),
-                            contentDescription = screen.label,
-                            colorFilter = ColorFilter.tint(tint)
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedTextColor = selectedColor,
-                        unselectedTextColor = Color.White,
-                        indicatorColor = Color.Transparent
+                    }
+                },
+                label = { 
+                    Text(
+                        text = screen.label,
+                        style = MaterialTheme.typography.labelMedium
+                    ) 
+                },
+                icon = {
+                    Image(
+                        painter = painterResource(id = screen.icon),
+                        contentDescription = screen.label,
+                        colorFilter = ColorFilter.tint(tint),
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedTextColor = selectedColor,
+                    unselectedTextColor = Color.White,
+                    indicatorColor = Color.Transparent
                 )
-            }
+            )
         }
     }
 }

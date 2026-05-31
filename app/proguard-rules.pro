@@ -37,3 +37,7 @@
 
 # --- Coil ---
 -keep class coil.** { *; }
+
+# --- Huawei Petal Ads ---
+-keep class com.huawei.openalliance.ad.** { *; }
+-keep class com.huawei.hms.ads.** { *; }
