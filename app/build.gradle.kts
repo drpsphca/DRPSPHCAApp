@@ -13,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 3
-        versionName = "phcaapp-stable-26.05.27.1"
+        versionName = "phcaapp-stable-26.06.04.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
