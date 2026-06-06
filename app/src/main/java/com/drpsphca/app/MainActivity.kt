@@ -95,18 +95,14 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
-import com.huawei.hms.ads.AdParam
-import com.huawei.hms.ads.BannerAdSize
-import com.huawei.hms.ads.HwAds
-import com.huawei.hms.ads.banner.BannerView
 
 class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Initialize Huawei Ads SDK
-        HwAds.init(this)
+        // Initialize Ads SDK (flavor-specific)
+        initAds(this)
         
         setContent {
             DRPSPHCATheme {
@@ -288,7 +284,7 @@ fun HomeScreen(
             ) {
                 // Banner Ad
                 item {
-                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                    BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                 }
 
                 // Newsletter Section
@@ -426,20 +422,6 @@ fun HomeScreen(
     }
 }
 
-@Composable
-fun PetalBannerAd(modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            BannerView(context).apply {
-                adId = BuildConfig.PETAL_ADS_UNIT_ID
-                bannerAdSize = BannerAdSize.BANNER_SIZE_320_50
-                loadAd(AdParam.Builder().build())
-            }
-        }
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
@@ -487,7 +469,7 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 item {
-                                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                                    BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
                                     PostItem(post = post, navController = navController)
@@ -518,7 +500,7 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
-                                    PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                                    BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
                                     PostItem(post = post, navController = navController)
@@ -583,7 +565,7 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            PetalBannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
             // ... same items as before
 
             Text(

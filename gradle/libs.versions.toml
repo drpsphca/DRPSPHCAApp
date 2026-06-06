@@ -17,6 +17,7 @@ runner = "1.5.2"
 core = "1.5.0"
 profileinstaller = "1.4.1"
 huaweiAds = "13.4.72.301"
+googleAds = "23.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,6 +44,7 @@ androidx-runner = { group = "androidx.test", name = "runner", version.ref = "run
 androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 huawei-ads = { group = "com.huawei.hms", name = "ads-lite", version.ref = "huaweiAds" }
+google-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "googleAds" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

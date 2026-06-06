@@ -16,10 +16,6 @@
         android:theme="@style/Theme.DRPSPHCA"
         android:networkSecurityConfig="@xml/network_security_config">
 
-        <meta-data
-            android:name="com.huawei.hms.client.appid"
-            android:value="${HUAWEI_APP_ID}" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"

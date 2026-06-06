@@ -12,16 +12,25 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "phcaapp-stable-26.06.04.1"
+        versionCode = 4
+        versionName = "phcaapp-stable-26.06.06.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "WORDPRESS_API_URL", "\"${project.property("WORDPRESS_API_URL")}\"")
         buildConfigField("String", "WORDPRESS_API_KEY", "\"${project.property("WORDPRESS_API_KEY")}\"")
-        
-        manifestPlaceholders["HUAWEI_APP_ID"] = "116826797"
-        buildConfigField("String", "PETAL_ADS_UNIT_ID", "\"b27ccpb8fh\"")
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("huawei") {
+            dimension = "distribution"
+            buildConfigField("String", "ADS_UNIT_ID", "\"b27ccpb8fh\"")
+        }
+        create("googlePlay") {
+            dimension = "distribution"
+            buildConfigField("String", "ADS_UNIT_ID", "\"ca-app-pub-5724714825846987/1069364341\"")
+        }
     }
 
     buildTypes {
@@ -51,7 +60,8 @@ android {
 }
 
 dependencies {
-    implementation(libs.huawei.ads)
+    "huaweiImplementation"(libs.huawei.ads)
+    "googlePlayImplementation"(libs.google.ads)
     implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.core:core-ktx:1.12.0")
