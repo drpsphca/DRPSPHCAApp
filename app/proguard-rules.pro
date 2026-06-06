@@ -41,3 +41,16 @@
 # --- Huawei Petal Ads ---
 -keep class com.huawei.openalliance.ad.** { *; }
 -keep class com.huawei.hms.ads.** { *; }
+
+# --- App Startup ---
+-keep class androidx.startup.InitializationProvider { *; }
+-keep class * implements androidx.startup.Initializer { *; }
+
+# --- Room & WorkManager ---
+# Keep Room generated classes, especially for WorkManager's internal database.
+-keep class * extends androidx.room.RoomDatabase
+-keep class * extends androidx.room.RoomDatabase {
+    <init>(...);
+}
+-dontwarn androidx.room.paging.**
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }

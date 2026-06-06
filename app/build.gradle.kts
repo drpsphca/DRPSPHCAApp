@@ -12,8 +12,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "phcaapp-stable-26.06.06.1"
+        versionCode = 26060604
+        versionName = "phcaapp-stable-26.06.06.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -86,6 +86,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.startup:startup-runtime:1.2.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation(project(":shared"))

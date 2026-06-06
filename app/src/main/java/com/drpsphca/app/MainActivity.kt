@@ -766,7 +766,7 @@ fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns
     }
 }
 
-sealed class Screen(val route: String, val label: String, @DrawableRes val icon: Int) {
+sealed class Screen(val route: String, val label: String, @param:DrawableRes val icon: Int) {
     object Home : Screen("home", "Home", R.drawable.phcaapp_home)
     object Blog : Screen("blog", "Blog", R.drawable.phcaapp_blog)
     object Newsletter : Screen("newsletter", "Newsletter", R.drawable.phcaapp_newsletter)
