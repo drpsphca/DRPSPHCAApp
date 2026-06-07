@@ -5,6 +5,7 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
@@ -51,9 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -71,7 +70,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -97,8 +95,8 @@ import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
 
 class MainActivity : ComponentActivity() {
-    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         // Initialize Ads SDK (flavor-specific)
@@ -106,16 +104,6 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             DRPSPHCATheme {
-                val view = LocalView.current
-                val darkTheme = isSystemInDarkTheme()
-                val backgroundColor = MaterialTheme.colorScheme.background
-                if (!view.isInEditMode) {
-                    SideEffect {
-                        val window = (view.context as Activity).window
-                        window.statusBarColor = backgroundColor.toArgb()
-                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-                    }
-                }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     WordPressApp()
                 }
@@ -200,7 +188,8 @@ fun PostDetailRoute(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
         }
     ) { innerPadding ->
@@ -243,21 +232,7 @@ fun HomeScreen(
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
-    val pullRefreshState = rememberPullToRefreshState()
     val isCompact = windowSize == WindowSize.COMPACT
-
-    if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(true) {
-            wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
-            wordPressViewModel.fetchNewsletters(perPage = 1)
-        }
-    }
-
-    LaunchedEffect(isRefreshing) {
-        if (!isRefreshing) {
-            pullRefreshState.endRefresh()
-        }
-    }
 
     LaunchedEffect(Unit) {
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
@@ -271,12 +246,16 @@ fun HomeScreen(
                     contentDescription = "DRPSPHCA Blog",
                     modifier = Modifier.height(40.dp)
                 )
-            }
+            },
+            windowInsets = WindowInsets(0, 0, 0, 0)
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
+                wordPressViewModel.fetchNewsletters(perPage = 1)
+            },
+            modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -410,14 +389,6 @@ fun HomeScreen(
                     }
                 }
             }
-            if (pullRefreshState.isRefreshing || pullRefreshState.progress > 0f) {
-                PullToRefreshContainer(
-                    state = pullRefreshState,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp)
-                )
-            }
         }
     }
 }
@@ -427,20 +398,7 @@ fun HomeScreen(
 fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
-    val pullRefreshState = rememberPullToRefreshState()
     val isCompact = windowSize == WindowSize.COMPACT
-
-    if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(true) {
-            wordPressViewModel.fetchPosts(true, page = 1, perPage = 20)
-        }
-    }
-
-    LaunchedEffect(isRefreshing) {
-        if (!isRefreshing) {
-            pullRefreshState.endRefresh()
-        }
-    }
 
     LaunchedEffect(Unit) {
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
@@ -448,9 +406,16 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
     Column {
         CenterAlignedTopAppBar(
-            title = { Text("Blog") }
+            title = { Text("Blog") },
+            windowInsets = WindowInsets(0, 0, 0, 0)
         )
-        Box(modifier = Modifier.fillMaxSize().nestedScroll(pullRefreshState.nestedScrollConnection)) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                wordPressViewModel.fetchPosts(true, page = 1, perPage = 20)
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
             when (val state = uiState) {
                 // ... same states as before
                 is PostUiState.Loading -> {
@@ -539,14 +504,6 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                 }
                 is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
             }
-            if (pullRefreshState.isRefreshing || pullRefreshState.progress > 0f) {
-                PullToRefreshContainer(
-                    state = pullRefreshState,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp)
-                )
-            }
         }
     }
 }
@@ -559,7 +516,8 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
 
     Column {
         CenterAlignedTopAppBar(
-            title = { Text("Newsletter") }
+            title = { Text("Newsletter") },
+            windowInsets = WindowInsets(0, 0, 0, 0)
         )
         Column(
             modifier = Modifier.fillMaxSize(),
