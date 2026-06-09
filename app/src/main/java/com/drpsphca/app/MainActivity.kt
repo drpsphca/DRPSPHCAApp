@@ -146,6 +146,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MorePopupMenu(
     expanded: Boolean,
+    isOnline: Boolean,
     onDismissRequest: () -> Unit,
     onBookmarksClick: () -> Unit,
     onDownloadsClick: () -> Unit
@@ -157,17 +158,23 @@ fun MorePopupMenu(
         modifier = Modifier.padding(8.dp)
     ) {
         DropdownMenuItem(
-            text = { Text("Bookmarks") },
+            text = { 
+                Text(
+                    text = "Bookmarks",
+                    color = if (isOnline) Color.Unspecified else Color.Gray
+                ) 
+            },
             onClick = {
                 onBookmarksClick()
                 onDismissRequest()
             },
+            enabled = isOnline,
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.phcaapp_bookmarks),
                     contentDescription = "Bookmarks",
                     modifier = Modifier.size(24.dp),
-                    tint = Color.Unspecified
+                    tint = if (isOnline) Color.Unspecified else Color.Gray
                 )
             }
         )
@@ -199,6 +206,8 @@ fun TopBarWithActions(
     onDownloadsClick: () -> Unit = {}
 ) {
     var showMoreMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val isOnline = remember(showMoreMenu) { isOnline(context) }
 
     CenterAlignedTopAppBar(
         title = title,
@@ -226,6 +235,7 @@ fun TopBarWithActions(
                 }
                 MorePopupMenu(
                     expanded = showMoreMenu,
+                    isOnline = isOnline,
                     onDismissRequest = { showMoreMenu = false },
                     onBookmarksClick = onBookmarksClick,
                     onDownloadsClick = onDownloadsClick
@@ -351,25 +361,29 @@ fun PostDetailRoute(
                         
                         val bookmarkingIds by wordPressViewModel.bookmarkingPostIds.collectAsState()
                         val isBookmarking = post.id in bookmarkingIds
+                        val isOnline = isOnline(context)
                         
                         if (isBookmarking) {
                             Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             }
                         } else {
-                            IconButton(onClick = { 
-                                wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags)) { added ->
-                                    if (added) {
-                                        Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                            IconButton(
+                                onClick = { 
+                                    wordPressViewModel.toggleBookmark(post.toItemUiModel()) { added ->
+                                        if (added) {
+                                            Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
-                                }
-                            }) {
+                                },
+                                enabled = isOnline
+                            ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.phcaapp_bookmarks),
                                     contentDescription = "Bookmark",
-                                    tint = if (isBookmarked) Color(0xFF128FF1) else Color.Black,
+                                    tint = if (!isOnline) Color.Gray else if (isBookmarked) Color(0xFF128FF1) else Color.Black,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -380,20 +394,23 @@ fun PostDetailRoute(
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             }
                         } else {
-                            IconButton(onClick = { 
-                                val wasDownloaded = isDownloaded
-                                wordPressViewModel.toggleDownload(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags)) { success ->
-                                    if (success) {
-                                        Toast.makeText(context, "Post downloaded and saved to device", Toast.LENGTH_SHORT).show()
-                                    } else if (wasDownloaded) {
-                                        Toast.makeText(context, "Download deleted from device.", Toast.LENGTH_SHORT).show()
+                            IconButton(
+                                onClick = { 
+                                    val wasDownloaded = isDownloaded
+                                    wordPressViewModel.toggleDownload(post) { success ->
+                                        if (success) {
+                                            Toast.makeText(context, "Post downloaded and saved to device", Toast.LENGTH_SHORT).show()
+                                        } else if (wasDownloaded) {
+                                            Toast.makeText(context, "Download deleted from device.", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
-                                }
-                            }) {
+                                },
+                                enabled = isOnline
+                            ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.phcaapp_download),
                                     contentDescription = "Download",
-                                    tint = if (isDownloaded) Color(0xFF4CAF50) else Color.Black,
+                                    tint = if (!isOnline) Color.Gray else if (isDownloaded) Color(0xFF4CAF50) else Color.Black,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }

@@ -1,15 +1,19 @@
 package com.drpsphca.app.ui.viewmodel
 
+import android.app.Application
+import android.content.Context
 import android.text.Html
 import android.util.Log
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.drpsphca.app.data.Category
 import com.drpsphca.app.data.Post
 import com.drpsphca.app.data.Rendered
 import com.drpsphca.app.data.WordPressApi
 import com.drpsphca.app.data.WordPressClient
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -58,13 +64,28 @@ data class PostDetailUiModel(
     val id: Int,
     val formattedDate: String,
     val plainTitle: String,
+    val plainExcerpt: String,
     val content: String,
     val imageUrl: String?,
     val tags: List<String>,
     val link: String
-)
+) {
+    fun toItemUiModel(): PostItemUiModel {
+        return PostItemUiModel(
+            id = id,
+            formattedDate = formattedDate,
+            plainTitle = plainTitle,
+            plainExcerpt = plainExcerpt,
+            imageUrl = imageUrl,
+            tags = tags
+        )
+    }
+}
 
-class WordPressViewModel : ViewModel() {
+class WordPressViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("wp_prefs", Context.MODE_PRIVATE)
+    private val gson = Gson()
 
     private val _uiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
     val uiState: StateFlow<PostUiState> = _uiState.asStateFlow()
@@ -83,8 +104,10 @@ class WordPressViewModel : ViewModel() {
     private val _bookmarkedPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
     val bookmarkedPosts: StateFlow<List<PostItemUiModel>> = _bookmarkedPosts.asStateFlow()
     
-    private val _downloadedPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
-    val downloadedPosts: StateFlow<List<PostItemUiModel>> = _downloadedPosts.asStateFlow()
+    private val _downloadedPosts = MutableStateFlow<List<PostDetailUiModel>>(emptyList())
+    val downloadedPosts: StateFlow<List<PostItemUiModel>> = _downloadedPosts
+        .map { list -> list.map { it.toItemUiModel() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _downloadingPostIds = MutableStateFlow<Set<Int>>(emptySet())
     val downloadingPostIds: StateFlow<Set<Int>> = _downloadingPostIds.asStateFlow()
@@ -96,7 +119,45 @@ class WordPressViewModel : ViewModel() {
     private val mutex = Mutex()
 
     init {
+        loadBookmarks()
+        loadDownloads()
         fetchCategories()
+    }
+
+    private fun loadBookmarks() {
+        val json = prefs.getString("bookmarks", null)
+        if (json != null) {
+            try {
+                val type = object : TypeToken<List<PostItemUiModel>>() {}.type
+                val bookmarks: List<PostItemUiModel> = gson.fromJson(json, type)
+                _bookmarkedPosts.value = bookmarks
+            } catch (e: Exception) {
+                Log.e("WordPressViewModel", "Error loading bookmarks", e)
+            }
+        }
+    }
+
+    private fun saveBookmarks(bookmarks: List<PostItemUiModel>) {
+        val json = gson.toJson(bookmarks)
+        prefs.edit().putString("bookmarks", json).apply()
+    }
+
+    private fun loadDownloads() {
+        val json = prefs.getString("downloads", null)
+        if (json != null) {
+            try {
+                val type = object : TypeToken<List<PostDetailUiModel>>() {}.type
+                val downloads: List<PostDetailUiModel> = gson.fromJson(json, type)
+                _downloadedPosts.value = downloads
+            } catch (e: Exception) {
+                Log.e("WordPressViewModel", "Error loading downloads", e)
+            }
+        }
+    }
+
+    private fun saveDownloads(downloads: List<PostDetailUiModel>) {
+        val json = gson.toJson(downloads)
+        prefs.edit().putString("downloads", json).apply()
     }
 
     private fun fetchCategories() {
@@ -189,7 +250,11 @@ class WordPressViewModel : ViewModel() {
             viewModelScope.launch {
                 _bookmarkingPostIds.update { it + post.id }
                 kotlinx.coroutines.delay(1000) // Simulate processing
-                _bookmarkedPosts.update { list -> list.filter { it.id != post.id } }
+                _bookmarkedPosts.update { list -> 
+                    val newList = list.filter { it.id != post.id }
+                    saveBookmarks(newList)
+                    newList
+                }
                 _bookmarkingPostIds.update { it - post.id }
                 onComplete(false)
             }
@@ -197,7 +262,11 @@ class WordPressViewModel : ViewModel() {
             viewModelScope.launch {
                 _bookmarkingPostIds.update { it + post.id }
                 kotlinx.coroutines.delay(1000) // Simulate processing
-                _bookmarkedPosts.update { list -> list + post }
+                _bookmarkedPosts.update { list -> 
+                    val newList = list + post
+                    saveBookmarks(newList)
+                    newList
+                }
                 _bookmarkingPostIds.update { it - post.id }
                 onComplete(true)
             }
@@ -210,15 +279,58 @@ class WordPressViewModel : ViewModel() {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
                 kotlinx.coroutines.delay(1000) // Simulate processing
-                _downloadedPosts.update { list -> list.filter { it.id != post.id } }
+                _downloadedPosts.update { list -> 
+                    val newList = list.filter { it.id != post.id }
+                    saveDownloads(newList)
+                    newList
+                }
                 _downloadingPostIds.update { it - post.id }
                 onComplete(false)
             }
         } else {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
-                kotlinx.coroutines.delay(2000) // Simulate download
-                _downloadedPosts.update { list -> list + post }
+                try {
+                    val detail = wordPressApi.getPost(post.id).toDetailUiModel()
+                    _downloadedPosts.update { list -> 
+                        val newList = list + detail
+                        saveDownloads(newList)
+                        newList
+                    }
+                    onComplete(true)
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error downloading post", e)
+                    onComplete(false)
+                } finally {
+                    _downloadingPostIds.update { it - post.id }
+                }
+            }
+        }
+    }
+
+    fun toggleDownload(post: PostDetailUiModel, onComplete: (Boolean) -> Unit) {
+        val isCurrentlyDownloaded = _downloadedPosts.value.any { it.id == post.id }
+        if (isCurrentlyDownloaded) {
+            viewModelScope.launch {
+                _downloadingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(1000) // Simulate processing
+                _downloadedPosts.update { list -> 
+                    val newList = list.filter { it.id != post.id }
+                    saveDownloads(newList)
+                    newList
+                }
+                _downloadingPostIds.update { it - post.id }
+                onComplete(false)
+            }
+        } else {
+            viewModelScope.launch {
+                _downloadingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(1000) // Simulate saving
+                _downloadedPosts.update { list -> 
+                    val newList = list + post
+                    saveDownloads(newList)
+                    newList
+                }
                 _downloadingPostIds.update { it - post.id }
                 onComplete(true)
             }
@@ -268,6 +380,13 @@ class WordPressViewModel : ViewModel() {
             mutex.withLock {
                 _uiState.update { PostUiState.Loading }
                 try {
+                    // Check if already downloaded
+                    val downloadedPost = _downloadedPosts.value.find { it.id == id }
+                    if (downloadedPost != null) {
+                        _uiState.update { PostUiState.PostSuccess(downloadedPost) }
+                        return@withLock
+                    }
+
                     val post = wordPressApi.getPost(id)
                     _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel()) }
                 } catch (e: Exception) {
@@ -304,6 +423,7 @@ class WordPressViewModel : ViewModel() {
             SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it)
         } ?: date
         val plainTitle = Html.fromHtml(title.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
+        val plainExcerpt = Html.fromHtml(excerpt.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
         val imageUrl = embedded?.featuredMedia?.firstOrNull()?.sourceUrl
         val tags = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }?.map {
             Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
@@ -314,6 +434,7 @@ class WordPressViewModel : ViewModel() {
             id = id,
             formattedDate = formattedDate,
             plainTitle = plainTitle,
+            plainExcerpt = plainExcerpt,
             content = contentAsString,
             imageUrl = imageUrl,
             tags = tags,

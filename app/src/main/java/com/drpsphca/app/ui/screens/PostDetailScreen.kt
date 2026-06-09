@@ -155,14 +155,17 @@ fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
                             var src = iframe.src || "";
                             
                             // Check if it's a video/embed we want to handle
-                            var isVideo = src.includes('youtube') || 
+                            var isEmbed = src.includes('youtube') || 
                                           src.includes('facebook') || 
                                           src.includes('vimeo') || 
                                           src.includes('reels') || 
                                           src.includes('shorts') || 
-                                          src.includes('tiktok');
+                                          src.includes('tiktok') ||
+                                          src.includes('instagram') ||
+                                          src.includes('twitter') ||
+                                          src.includes('threads');
                                           
-                            if (!isVideo) return;
+                            if (!isEmbed) return;
                             
                             if (${isOffline}) {
                                 var msg = document.createElement('div');
@@ -190,6 +193,21 @@ fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
                         });
                     }
                     
+                    function handleSocialPlaceholders() {
+                        if (!${isOffline}) return;
+                        
+                        // Handle blockquotes that WordPress/Social platforms use as placeholders before JS loads
+                        var selector = 'blockquote.instagram-media, blockquote.twitter-tweet, blockquote.tiktok-embed, .wp-block-embed';
+                        var placeholders = document.querySelectorAll(selector);
+                        
+                        placeholders.forEach(function(el) {
+                            var msg = document.createElement('div');
+                            msg.className = 'offline-message';
+                            msg.innerText = 'Embedded content is not available on offline reading';
+                            el.parentNode.replaceChild(msg, el);
+                        });
+                    }
+                    
                     function updateRatio(wrapper, iframe, src) {
                         var width = parseInt(iframe.width) || 16;
                         var height = parseInt(iframe.height) || 9;
@@ -208,14 +226,19 @@ fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
                     
                     // Initial run
                     wrapIframes();
+                    handleSocialPlaceholders();
                     
                     // Run again after images/other content might have loaded
-                    window.addEventListener('load', wrapIframes);
+                    window.addEventListener('load', function() {
+                        wrapIframes();
+                        handleSocialPlaceholders();
+                    });
                     
                     // Periodic check for dynamic content
                     var count = 0;
                     var interval = setInterval(function() {
                         wrapIframes();
+                        handleSocialPlaceholders();
                         if (++count > 5) clearInterval(interval);
                     }, 1000);
                 })();
@@ -262,9 +285,10 @@ fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
                             customViewCallback = null
                         }
                     }
-                    
-                    loadDataWithBaseURL("https://drpsphca.com", htmlContent, "text/html", "utf-8", null)
                 }
+            },
+            update = { webView ->
+                webView.loadDataWithBaseURL("https://drpsphca.com", htmlContent, "text/html", "utf-8", null)
             },
             modifier = Modifier.fillMaxSize()
         )
