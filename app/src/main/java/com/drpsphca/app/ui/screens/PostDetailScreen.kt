@@ -1,5 +1,6 @@
 package com.drpsphca.app.ui.screens
 
+import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
     val isDarkTheme = isSystemInDarkTheme()

@@ -22,9 +22,6 @@ interface WordPressApi {
 
     @GET("wp/v2/tags")
     suspend fun getTags(@Query("search") search: String? = null, @Query("per_page") perPage: Int = 100): List<Tag>
-
-    @GET("wp/v2/media/{id}")
-    suspend fun getMedia(@Path("id") id: Int): Media
 }
 
 data class Tag(

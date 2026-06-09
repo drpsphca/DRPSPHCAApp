@@ -11,7 +11,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -118,6 +117,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
@@ -339,27 +342,49 @@ fun PostDetailRoute(
                         val post = (uiState as PostUiState.PostSuccess).post
                         val isBookmarked = wordPressViewModel.isBookmarked(post.id)
                         val isDownloaded = wordPressViewModel.isDownloaded(post.id)
+                        val downloadingIds by wordPressViewModel.downloadingPostIds.collectAsState()
+                        val isDownloading = post.id in downloadingIds
                         
                         IconButton(onClick = { 
-                            wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
+                            val added = wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
+                            if (added) {
+                                Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                            }
                         }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.phcaapp_bookmarks),
                                 contentDescription = "Bookmark",
-                                tint = if (isBookmarked) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                tint = if (isBookmarked) Color(0xFF128FF1) else Color.Black,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        IconButton(onClick = { 
-                            wordPressViewModel.toggleDownload(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.phcaapp_download),
-                                contentDescription = "Download",
-                                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        
+                        if (isDownloading) {
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            }
+                        } else {
+                            IconButton(onClick = { 
+                                val wasDownloaded = isDownloaded
+                                wordPressViewModel.toggleDownload(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags)) { success ->
+                                    if (success) {
+                                        Toast.makeText(context, "Post downloaded and saved to device", Toast.LENGTH_SHORT).show()
+                                    } else if (wasDownloaded) {
+                                        Toast.makeText(context, "Download deleted from device.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.phcaapp_download),
+                                    contentDescription = "Download",
+                                    tint = if (isDownloaded) Color(0xFF4CAF50) else Color.Black,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
+
                         IconButton(onClick = { 
                             sharePost(context, post.plainTitle, post.link)
                         }) {
@@ -866,7 +891,7 @@ fun WebViewScreen(url: String) {
 // Removed PostList function as it was never used.
 
 @Composable
-fun PostItem(post: PostItemUiModel, navController: NavController) {
+fun PostItem(post: PostItemUiModel, navController: NavController, highlightQuery: String? = null) {
     Card(modifier = Modifier
         .padding(8.dp)
         .widthIn(max = 500.dp)
@@ -881,8 +906,14 @@ fun PostItem(post: PostItemUiModel, navController: NavController) {
                 )
             }
             Column(modifier = Modifier.padding(16.dp)) {
+                val annotatedTitle = if (highlightQuery.isNullOrEmpty()) {
+                    buildAnnotatedString { append(post.plainTitle) }
+                } else {
+                    getHighlightedText(post.plainTitle, highlightQuery)
+                }
+
                 Text(
-                    text = post.plainTitle,
+                    text = annotatedTitle,
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -915,10 +946,32 @@ fun PostItem(post: PostItemUiModel, navController: NavController) {
     }
 }
 
+fun getHighlightedText(text: String, query: String): AnnotatedString {
+    return buildAnnotatedString {
+        val lowerText = text.lowercase()
+        val lowerQuery = query.lowercase()
+        var currentIndex = 0
+        while (currentIndex < text.length) {
+            val index = lowerText.indexOf(lowerQuery, currentIndex)
+            if (index == -1) {
+                append(text.substring(currentIndex))
+                break
+            } else {
+                append(text.substring(currentIndex, index))
+                withStyle(style = SpanStyle(background = Color(0xFFFF6B2D), color = Color.White)) {
+                    append(text.substring(index, index + query.length))
+                }
+                currentIndex = index + query.length
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
     var query by remember { mutableStateOf("") }
+    var appliedQuery by remember { mutableStateOf("") }
     val uiState by wordPressViewModel.uiState.collectAsState()
 
     Column {
@@ -939,6 +992,7 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
+                        appliedQuery = query
                         wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
                     })
                 )
@@ -955,7 +1009,7 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
             is PostUiState.Success -> {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(state.posts) { post ->
-                        PostItem(post = post, navController = navController)
+                        PostItem(post = post, navController = navController, highlightQuery = appliedQuery)
                     }
                 }
             }

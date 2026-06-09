@@ -85,6 +85,9 @@ class WordPressViewModel : ViewModel() {
     private val _downloadedPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
     val downloadedPosts: StateFlow<List<PostItemUiModel>> = _downloadedPosts.asStateFlow()
 
+    private val _downloadingPostIds = MutableStateFlow<Set<Int>>(emptySet())
+    val downloadingPostIds: StateFlow<Set<Int>> = _downloadingPostIds.asStateFlow()
+
     private val wordPressApi = WordPressClient.api
     private val mutex = Mutex()
 
@@ -152,8 +155,15 @@ class WordPressViewModel : ViewModel() {
                 tags = tagIds
             )
 
+            var uiModels = posts.map { it.toUiModel() }
+            
+            // Filter to strictly match title if searchQuery is present
+            if (searchQuery != null) {
+                uiModels = uiModels.filter { it.plainTitle.contains(searchQuery, ignoreCase = true) }
+            }
+
             val currentPosts = if (page == 1 || forHome) emptyList() else _blogPosts.value
-            val newPosts = currentPosts + posts.map { it.toUiModel() }
+            val newPosts = currentPosts + uiModels
             _blogPosts.value = newPosts
             _currentPage.value = page
 
@@ -169,21 +179,34 @@ class WordPressViewModel : ViewModel() {
         }
     }
 
-    fun toggleBookmark(post: PostItemUiModel) {
-        if (_bookmarkedPosts.value.any { it.id == post.id }) {
+    fun toggleBookmark(post: PostItemUiModel): Boolean {
+        val isCurrentlyBookmarked = _bookmarkedPosts.value.any { it.id == post.id }
+        if (isCurrentlyBookmarked) {
             _bookmarkedPosts.update { list -> list.filter { it.id != post.id } }
+            return false
         } else {
             _bookmarkedPosts.update { list -> list + post }
+            return true
         }
     }
     
-    fun toggleDownload(post: PostItemUiModel) {
-         if (_downloadedPosts.value.any { it.id == post.id }) {
+    fun toggleDownload(post: PostItemUiModel, onComplete: (Boolean) -> Unit) {
+        val isCurrentlyDownloaded = _downloadedPosts.value.any { it.id == post.id }
+        if (isCurrentlyDownloaded) {
             _downloadedPosts.update { list -> list.filter { it.id != post.id } }
+            onComplete(false)
         } else {
-            _downloadedPosts.update { list -> list + post }
+            viewModelScope.launch {
+                _downloadingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(2000) // Simulate download
+                _downloadedPosts.update { list -> list + post }
+                _downloadingPostIds.update { it - post.id }
+                onComplete(true)
+            }
         }
     }
+
+    fun isDownloading(postId: Int): Boolean = _downloadingPostIds.value.contains(postId)
 
     fun isBookmarked(postId: Int): Boolean = _bookmarkedPosts.value.any { it.id == postId }
     fun isDownloaded(postId: Int): Boolean = _downloadedPosts.value.any { it.id == postId }
