@@ -11,23 +11,23 @@ android {
     defaultConfig {
         applicationId = "com.drpsphca.app"
         minSdk = 24
-        targetSdk = 36
-        versionCode = 26060701
-        versionName = "phcaapp-stable-26.06.07.1"
+        targetSdk = 37
+        versionCode = 26060801
+        versionName = "phcaapp-stable-26.06.08.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "WORDPRESS_API_URL", "\"${project.property("WORDPRESS_API_URL")}\"")
-        buildConfigField("String", "WORDPRESS_API_KEY", "\"${project.property("WORDPRESS_API_KEY")}\"")
+        buildConfigField("String", "WORDPRESS_API_URL", "\"${providers.gradleProperty("WORDPRESS_API_URL").get()}\"")
+        buildConfigField("String", "WORDPRESS_API_KEY", "\"${providers.gradleProperty("WORDPRESS_API_KEY").get()}\"")
     }
 
-    flavorDimensions += "distribution"
+    flavorDimensions.add("distribution")
     productFlavors {
-        create("huawei") {
+        register("huawei") {
             dimension = "distribution"
             buildConfigField("String", "ADS_UNIT_ID", "\"b27ccpb8fh\"")
         }
-        create("googlePlay") {
+        register("googlePlay") {
             dimension = "distribution"
             buildConfigField("String", "ADS_UNIT_ID", "\"ca-app-pub-5724714825846987/1069364341\"")
         }
