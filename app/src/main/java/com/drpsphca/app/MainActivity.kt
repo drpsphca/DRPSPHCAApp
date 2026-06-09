@@ -52,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +69,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -104,7 +106,7 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             DRPSPHCATheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFFCFCFF)) {
                     WordPressApp()
                 }
             }
@@ -115,6 +117,13 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+        }
+    }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -189,6 +198,9 @@ fun PostDetailRoute(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFFFCFCFF)
+                ),
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
         }
@@ -247,6 +259,9 @@ fun HomeScreen(
                     modifier = Modifier.height(40.dp)
                 )
             },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color(0xFFFCFCFF)
+            ),
             windowInsets = WindowInsets(0, 0, 0, 0)
         )
         PullToRefreshBox(
@@ -407,6 +422,9 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
     Column {
         CenterAlignedTopAppBar(
             title = { Text("Blog") },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color(0xFFFCFCFF)
+            ),
             windowInsets = WindowInsets(0, 0, 0, 0)
         )
         PullToRefreshBox(
@@ -517,6 +535,9 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
     Column {
         CenterAlignedTopAppBar(
             title = { Text("Newsletter") },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color(0xFFFCFCFF)
+            ),
             windowInsets = WindowInsets(0, 0, 0, 0)
         )
         Column(
