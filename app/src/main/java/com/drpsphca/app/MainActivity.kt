@@ -922,7 +922,12 @@ fun WebViewScreen(url: String) {
 // Removed PostList function as it was never used.
 
 @Composable
-fun PostItem(post: PostItemUiModel, navController: NavController, highlightQuery: String? = null) {
+fun PostItem(
+    post: PostItemUiModel, 
+    navController: NavController, 
+    highlightQuery: String? = null,
+    showTags: Boolean = true
+) {
     Card(modifier = Modifier
         .padding(8.dp)
         .widthIn(max = 500.dp)
@@ -951,8 +956,9 @@ fun PostItem(post: PostItemUiModel, navController: NavController, highlightQuery
                 Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = post.plainExcerpt, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                if (post.tags.isNotEmpty()) {
+                
+                if (showTags && post.tags.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -1040,7 +1046,12 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
             is PostUiState.Success -> {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(state.posts) { post ->
-                        PostItem(post = post, navController = navController, highlightQuery = appliedQuery)
+                        PostItem(
+                            post = post, 
+                            navController = navController, 
+                            highlightQuery = appliedQuery,
+                            showTags = false
+                        )
                     }
                 }
             }
@@ -1073,7 +1084,7 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
                 items(posts) { post ->
-                    PostItem(post = post, navController = navController)
+                    PostItem(post = post, navController = navController, showTags = false)
                 }
             }
         }
@@ -1103,7 +1114,7 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
                 items(posts) { post ->
-                    PostItem(post = post, navController = navController)
+                    PostItem(post = post, navController = navController, showTags = false)
                 }
             }
         }
@@ -1135,7 +1146,7 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
                 is PostUiState.Success -> {
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(state.posts) { post ->
-                            PostItem(post = post, navController = navController)
+                            PostItem(post = post, navController = navController, showTags = false)
                         }
                     }
                 }
