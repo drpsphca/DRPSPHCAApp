@@ -9,7 +9,9 @@ interface WordPressApi {
     suspend fun getPosts(
         @Query("page") page: Int = 1,
         @Query("per_page") perPage: Int = 10,
-        @Query("categories") categories: Int? = null
+        @Query("categories") categories: Int? = null,
+        @Query("search") search: String? = null,
+        @Query("tags") tags: String? = null
     ): List<Post>
 
     @GET("wp/v2/posts/{id}?_embed")
@@ -18,6 +20,15 @@ interface WordPressApi {
     @GET("wp/v2/categories")
     suspend fun getCategories(@Query("per_page") perPage: Int = 100): List<Category>
 
+    @GET("wp/v2/tags")
+    suspend fun getTags(@Query("search") search: String? = null, @Query("per_page") perPage: Int = 100): List<Tag>
+
     @GET("wp/v2/media/{id}")
     suspend fun getMedia(@Path("id") id: Int): Media
 }
+
+data class Tag(
+    val id: Int,
+    val name: String,
+    val slug: String
+)

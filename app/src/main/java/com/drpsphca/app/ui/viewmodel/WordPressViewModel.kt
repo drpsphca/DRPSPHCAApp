@@ -54,11 +54,13 @@ data class PostItemUiModel(
 
 @Immutable
 data class PostDetailUiModel(
+    val id: Int,
     val formattedDate: String,
     val plainTitle: String,
     val content: String,
     val imageUrl: String?,
-    val tags: List<String>
+    val tags: List<String>,
+    val link: String
 )
 
 class WordPressViewModel : ViewModel() {
@@ -76,6 +78,13 @@ class WordPressViewModel : ViewModel() {
     private val _currentPage = MutableStateFlow(1)
 
     private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    
+    private val _bookmarkedPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
+    val bookmarkedPosts: StateFlow<List<PostItemUiModel>> = _bookmarkedPosts.asStateFlow()
+    
+    private val _downloadedPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
+    val downloadedPosts: StateFlow<List<PostItemUiModel>> = _downloadedPosts.asStateFlow()
+
     private val wordPressApi = WordPressClient.api
     private val mutex = Mutex()
 
@@ -101,15 +110,15 @@ class WordPressViewModel : ViewModel() {
         }
     }
 
-    fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 20, forHome: Boolean = false) {
+    fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 20, forHome: Boolean = false, searchQuery: String? = null, tag: String? = null) {
         viewModelScope.launch {
             mutex.withLock {
-                doFetchPosts(isRefreshing, page, perPage, forHome)
+                doFetchPosts(isRefreshing, page, perPage, forHome, searchQuery, tag)
             }
         }
     }
 
-    private suspend fun doFetchPosts(isRefreshing: Boolean, page: Int, perPage: Int, forHome: Boolean) {
+    private suspend fun doFetchPosts(isRefreshing: Boolean, page: Int, perPage: Int, forHome: Boolean, searchQuery: String? = null, tag: String? = null) {
         if (isRefreshing) {
             _isRefreshing.value = true
             _currentPage.value = 1
@@ -119,12 +128,29 @@ class WordPressViewModel : ViewModel() {
 
         try {
             val blogCategory = _categories.value.find { it.slug == "blog" }
-            if (blogCategory == null) {
+            if (blogCategory == null && searchQuery == null && tag == null) {
                 _uiState.update { PostUiState.Error("Blog category not found") }
                 return
             }
 
-            val posts = wordPressApi.getPosts(page = page, perPage = perPage, categories = blogCategory.id)
+            var tagIds: String? = null
+            if (tag != null) {
+                val tagsList = wordPressApi.getTags(search = tag)
+                val matchingTag = tagsList.find { it.name.equals(tag, ignoreCase = true) }
+                tagIds = matchingTag?.id?.toString()
+                if (tagIds == null) {
+                    _uiState.update { PostUiState.Success(emptyList(), false) }
+                    return
+                }
+            }
+
+            val posts = wordPressApi.getPosts(
+                page = page, 
+                perPage = perPage, 
+                categories = blogCategory?.id,
+                search = searchQuery,
+                tags = tagIds
+            )
 
             val currentPosts = if (page == 1 || forHome) emptyList() else _blogPosts.value
             val newPosts = currentPosts + posts.map { it.toUiModel() }
@@ -143,7 +169,27 @@ class WordPressViewModel : ViewModel() {
         }
     }
 
+    fun toggleBookmark(post: PostItemUiModel) {
+        if (_bookmarkedPosts.value.any { it.id == post.id }) {
+            _bookmarkedPosts.update { list -> list.filter { it.id != post.id } }
+        } else {
+            _bookmarkedPosts.update { list -> list + post }
+        }
+    }
+    
+    fun toggleDownload(post: PostItemUiModel) {
+         if (_downloadedPosts.value.any { it.id == post.id }) {
+            _downloadedPosts.update { list -> list.filter { it.id != post.id } }
+        } else {
+            _downloadedPosts.update { list -> list + post }
+        }
+    }
+
+    fun isBookmarked(postId: Int): Boolean = _bookmarkedPosts.value.any { it.id == postId }
+    fun isDownloaded(postId: Int): Boolean = _downloadedPosts.value.any { it.id == postId }
+
     fun fetchNextPage() {
+        // ...
         viewModelScope.launch {
             mutex.withLock {
                 val uiStateValue = _uiState.value
@@ -228,11 +274,13 @@ class WordPressViewModel : ViewModel() {
         val contentAsString = content.rendered
 
         return PostDetailUiModel(
+            id = id,
             formattedDate = formattedDate,
             plainTitle = plainTitle,
             content = contentAsString,
             imageUrl = imageUrl,
-            tags = tags
+            tags = tags,
+            link = link
         )
     }
 }

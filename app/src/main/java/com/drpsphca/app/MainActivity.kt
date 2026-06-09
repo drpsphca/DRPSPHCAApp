@@ -96,6 +96,32 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
 
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.content.Context
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -112,6 +138,102 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+@Composable
+fun MorePopupMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    onBookmarksClick: () -> Unit,
+    onDownloadsClick: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        offset = DpOffset(x = 0.dp, y = 0.dp),
+        modifier = Modifier.padding(8.dp)
+    ) {
+        DropdownMenuItem(
+            text = { Text("Bookmarks") },
+            onClick = {
+                onBookmarksClick()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_bookmarks),
+                    contentDescription = "Bookmarks",
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.Unspecified
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text("Downloads") },
+            onClick = {
+                onDownloadsClick()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_download),
+                    contentDescription = "Downloads",
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.Unspecified
+                )
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TopBarWithActions(
+    title: @Composable () -> Unit,
+    showSearch: Boolean = false,
+    onSearchClick: () -> Unit = {},
+    onBookmarksClick: () -> Unit = {},
+    onDownloadsClick: () -> Unit = {}
+) {
+    var showMoreMenu by remember { mutableStateOf(false) }
+
+    CenterAlignedTopAppBar(
+        title = title,
+        navigationIcon = {
+            if (showSearch) {
+                IconButton(onClick = onSearchClick) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.phcaapp_search),
+                        contentDescription = "Search",
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+            }
+        },
+        actions = {
+            Box {
+                IconButton(onClick = { showMoreMenu = true }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.phcaapp_more),
+                        contentDescription = "More",
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+                MorePopupMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false },
+                    onBookmarksClick = onBookmarksClick,
+                    onDownloadsClick = onDownloadsClick
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color(0xFFFCFCFF)
+        ),
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,6 +294,19 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 val url = backStackEntry.arguments?.getString("url") ?: "about:blank"
                 WebViewScreen(url = url)
             }
+            composable("search") {
+                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+            }
+            composable("bookmarks") {
+                BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+            }
+            composable("downloads") {
+                DownloadsScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+            }
+            composable("tag/{tagName}") { backStackEntry ->
+                val tagName = backStackEntry.arguments?.getString("tagName") ?: ""
+                TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel)
+            }
         }
     }
 }
@@ -183,6 +318,7 @@ fun PostDetailRoute(
     navController: NavController,
     postId: Int?
 ) {
+    val context = LocalContext.current
     LaunchedEffect(postId) {
         if (postId != null) {
             wordPressViewModel.fetchPost(postId)
@@ -196,6 +332,44 @@ fun PostDetailRoute(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState is PostUiState.PostSuccess) {
+                        val post = (uiState as PostUiState.PostSuccess).post
+                        val isBookmarked = wordPressViewModel.isBookmarked(post.id)
+                        val isDownloaded = wordPressViewModel.isDownloaded(post.id)
+                        
+                        IconButton(onClick = { 
+                            wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.phcaapp_bookmarks),
+                                contentDescription = "Bookmark",
+                                tint = if (isBookmarked) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        IconButton(onClick = { 
+                            wordPressViewModel.toggleDownload(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.phcaapp_download),
+                                contentDescription = "Download",
+                                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        IconButton(onClick = { 
+                            sharePost(context, post.plainTitle, post.link)
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.phcaapp_share),
+                                contentDescription = "Share",
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.Unspecified
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -214,7 +388,8 @@ fun PostDetailRoute(
                 }
 
                 is PostUiState.PostSuccess -> {
-                    PostDetailScreen(post = state.post)
+                    val isOffline = !isOnline(context)
+                    PostDetailScreen(post = state.post, isOffline = isOffline)
                 }
 
                 is PostUiState.Error -> {
@@ -234,6 +409,27 @@ fun PostDetailRoute(
     }
 }
 
+fun sharePost(context: Context, title: String, url: String) {
+    val sendIntent: Intent = Intent().apply {
+        action = Intent.ACTION_SEND
+        putExtra(Intent.EXTRA_TEXT, "$title: $url")
+        type = "text/plain"
+    }
+    val shareIntent = Intent.createChooser(sendIntent, null)
+    context.startActivity(shareIntent)
+}
+
+fun isOnline(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+    if (capabilities != null) {
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return true
+        else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return true
+        else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return true
+    }
+    return false
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -251,7 +447,7 @@ fun HomeScreen(
     }
 
     Column {
-        CenterAlignedTopAppBar(
+        TopBarWithActions(
             title = {
                 Image(
                     painter = painterResource(id = R.drawable.logo),
@@ -259,10 +455,10 @@ fun HomeScreen(
                     modifier = Modifier.height(40.dp)
                 )
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFFFCFCFF)
-            ),
-            windowInsets = WindowInsets(0, 0, 0, 0)
+            showSearch = true,
+            onSearchClick = { navController.navigate("search") },
+            onBookmarksClick = { navController.navigate("bookmarks") },
+            onDownloadsClick = { navController.navigate("downloads") }
         )
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -420,12 +616,12 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
     }
 
     Column {
-        CenterAlignedTopAppBar(
+        TopBarWithActions(
             title = { Text("Blog") },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFFFCFCFF)
-            ),
-            windowInsets = WindowInsets(0, 0, 0, 0)
+            showSearch = true,
+            onSearchClick = { navController.navigate("search") },
+            onBookmarksClick = { navController.navigate("bookmarks") },
+            onDownloadsClick = { navController.navigate("downloads") }
         )
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -701,7 +897,8 @@ fun PostItem(post: PostItemUiModel, navController: NavController) {
                         items(post.tags) { tag ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.clickable { navController.navigate("tag/${tag}") }
                             ) {
                                 Text(
                                     text = tag,
@@ -713,6 +910,152 @@ fun PostItem(post: PostItemUiModel, navController: NavController) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+    var query by remember { mutableStateOf("") }
+    val uiState by wordPressViewModel.uiState.collectAsState()
+
+    Column {
+        TopAppBar(
+            title = {
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search Blog Posts...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
+                    })
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            }
+        )
+        // Results
+        when (val state = uiState) {
+            is PostUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            is PostUiState.Success -> {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    items(state.posts) { post ->
+                        PostItem(post = post, navController = navController)
+                    }
+                }
+            }
+            is PostUiState.Error -> Text(state.message, modifier = Modifier.padding(16.dp))
+            else -> {}
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+    val posts by wordPressViewModel.bookmarkedPosts.collectAsState()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Bookmarks") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        if (posts.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("No bookmarks yet.")
+            }
+        } else {
+            LazyColumn(modifier = Modifier.padding(padding)) {
+                items(posts) { post ->
+                    PostItem(post = post, navController = navController)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+    val posts by wordPressViewModel.downloadedPosts.collectAsState()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Downloads") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+         if (posts.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("No downloads yet.")
+            }
+        } else {
+            LazyColumn(modifier = Modifier.padding(padding)) {
+                items(posts) { post ->
+                    PostItem(post = post, navController = navController)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TagScreen(tagName: String, navController: NavController, wordPressViewModel: WordPressViewModel) {
+    val uiState by wordPressViewModel.uiState.collectAsState()
+    LaunchedEffect(tagName) {
+        wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, tag = tagName)
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Tag: $tagName") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
+            when (val state = uiState) {
+                is PostUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                is PostUiState.Success -> {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        items(state.posts) { post ->
+                            PostItem(post = post, navController = navController)
+                        }
+                    }
+                }
+                is PostUiState.Error -> Text(state.message, modifier = Modifier.padding(16.dp))
+                else -> {}
             }
         }
     }

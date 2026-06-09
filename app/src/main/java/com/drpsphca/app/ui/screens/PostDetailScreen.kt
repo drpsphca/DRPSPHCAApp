@@ -15,7 +15,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
 @Composable
-fun PostDetailScreen(post: PostDetailUiModel) {
+fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
     val isDarkTheme = isSystemInDarkTheme()
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
@@ -126,6 +126,17 @@ fun PostDetailScreen(post: PostDetailUiModel) {
                 [style*="width"] {
                     max-width: 100% !important;
                 }
+                
+                .offline-message {
+                    background: ${if (isDarkTheme) "#333333" else "#f0f0f0"};
+                    color: ${if (isDarkTheme) "#AAAAAA" else "#666666"};
+                    padding: 20px;
+                    border-radius: 8px;
+                    text-align: center;
+                    margin: 16px 0;
+                    border: 1px dashed ${if (isDarkTheme) "#444444" else "#cccccc"};
+                    font-style: italic;
+                }
             </style>
         </head>
         <body>
@@ -150,6 +161,14 @@ fun PostDetailScreen(post: PostDetailUiModel) {
                                           src.includes('tiktok');
                                           
                             if (!isVideo) return;
+                            
+                            if (${isOffline}) {
+                                var msg = document.createElement('div');
+                                msg.className = 'offline-message';
+                                msg.innerText = 'Embedded content is not available on offline reading';
+                                iframe.parentNode.replaceChild(msg, iframe);
+                                return;
+                            }
                             
                             // Check if already wrapped
                             var parent = iframe.parentElement;
