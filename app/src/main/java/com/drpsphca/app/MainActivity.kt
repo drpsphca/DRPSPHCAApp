@@ -340,25 +340,39 @@ fun PostDetailRoute(
                 actions = {
                     if (uiState is PostUiState.PostSuccess) {
                         val post = (uiState as PostUiState.PostSuccess).post
-                        val isBookmarked = wordPressViewModel.isBookmarked(post.id)
-                        val isDownloaded = wordPressViewModel.isDownloaded(post.id)
+                        val bookmarkedPosts by wordPressViewModel.bookmarkedPosts.collectAsState()
+                        val isBookmarked = bookmarkedPosts.any { it.id == post.id }
+                        
+                        val downloadedPosts by wordPressViewModel.downloadedPosts.collectAsState()
+                        val isDownloaded = downloadedPosts.any { it.id == post.id }
+                        
                         val downloadingIds by wordPressViewModel.downloadingPostIds.collectAsState()
                         val isDownloading = post.id in downloadingIds
                         
-                        IconButton(onClick = { 
-                            val added = wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags))
-                            if (added) {
-                                Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                        val bookmarkingIds by wordPressViewModel.bookmarkingPostIds.collectAsState()
+                        val isBookmarking = post.id in bookmarkingIds
+                        
+                        if (isBookmarking) {
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             }
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.phcaapp_bookmarks),
-                                contentDescription = "Bookmark",
-                                tint = if (isBookmarked) Color(0xFF128FF1) else Color.Black,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        } else {
+                            IconButton(onClick = { 
+                                wordPressViewModel.toggleBookmark(PostItemUiModel(post.id, post.formattedDate, post.plainTitle, "", post.imageUrl, post.tags)) { added ->
+                                    if (added) {
+                                        Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.phcaapp_bookmarks),
+                                    contentDescription = "Bookmark",
+                                    tint = if (isBookmarked) Color(0xFF128FF1) else Color.Black,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                         
                         if (isDownloading) {

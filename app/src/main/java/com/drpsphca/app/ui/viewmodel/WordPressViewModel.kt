@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -87,6 +88,9 @@ class WordPressViewModel : ViewModel() {
 
     private val _downloadingPostIds = MutableStateFlow<Set<Int>>(emptySet())
     val downloadingPostIds: StateFlow<Set<Int>> = _downloadingPostIds.asStateFlow()
+    
+    private val _bookmarkingPostIds = MutableStateFlow<Set<Int>>(emptySet())
+    val bookmarkingPostIds: StateFlow<Set<Int>> = _bookmarkingPostIds.asStateFlow()
 
     private val wordPressApi = WordPressClient.api
     private val mutex = Mutex()
@@ -179,22 +183,37 @@ class WordPressViewModel : ViewModel() {
         }
     }
 
-    fun toggleBookmark(post: PostItemUiModel): Boolean {
+    fun toggleBookmark(post: PostItemUiModel, onComplete: (Boolean) -> Unit) {
         val isCurrentlyBookmarked = _bookmarkedPosts.value.any { it.id == post.id }
         if (isCurrentlyBookmarked) {
-            _bookmarkedPosts.update { list -> list.filter { it.id != post.id } }
-            return false
+            viewModelScope.launch {
+                _bookmarkingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(1000) // Simulate processing
+                _bookmarkedPosts.update { list -> list.filter { it.id != post.id } }
+                _bookmarkingPostIds.update { it - post.id }
+                onComplete(false)
+            }
         } else {
-            _bookmarkedPosts.update { list -> list + post }
-            return true
+            viewModelScope.launch {
+                _bookmarkingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(1000) // Simulate processing
+                _bookmarkedPosts.update { list -> list + post }
+                _bookmarkingPostIds.update { it - post.id }
+                onComplete(true)
+            }
         }
     }
     
     fun toggleDownload(post: PostItemUiModel, onComplete: (Boolean) -> Unit) {
         val isCurrentlyDownloaded = _downloadedPosts.value.any { it.id == post.id }
         if (isCurrentlyDownloaded) {
-            _downloadedPosts.update { list -> list.filter { it.id != post.id } }
-            onComplete(false)
+            viewModelScope.launch {
+                _downloadingPostIds.update { it + post.id }
+                kotlinx.coroutines.delay(1000) // Simulate processing
+                _downloadedPosts.update { list -> list.filter { it.id != post.id } }
+                _downloadingPostIds.update { it - post.id }
+                onComplete(false)
+            }
         } else {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
@@ -205,11 +224,6 @@ class WordPressViewModel : ViewModel() {
             }
         }
     }
-
-    fun isDownloading(postId: Int): Boolean = _downloadingPostIds.value.contains(postId)
-
-    fun isBookmarked(postId: Int): Boolean = _bookmarkedPosts.value.any { it.id == postId }
-    fun isDownloaded(postId: Int): Boolean = _downloadedPosts.value.any { it.id == postId }
 
     fun fetchNextPage() {
         // ...
