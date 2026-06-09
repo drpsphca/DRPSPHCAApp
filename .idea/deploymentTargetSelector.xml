@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-06-09T07:02:40.818189300Z">
+        <DropdownSelection timestamp="2026-06-09T07:10:00.735859100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\fongl\.android\avd\DRPS_PHCA_Phone_1080p.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=RFGL30TLKQE" />
             </handle>
           </Target>
         </DropdownSelection>
