@@ -740,7 +740,7 @@ fun BottomNavigationBar(navController: NavController) {
     )
 
     NavigationBar(
-        containerColor = Color.Gray,
+        containerColor = Color(0xFFD4D4D4),
         tonalElevation = 0.dp
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -749,7 +749,7 @@ fun BottomNavigationBar(navController: NavController) {
         items.forEach { screen ->
             val isSelected = currentRoute == screen.route
             val selectedColor = selectedColors[screen.route] ?: MaterialTheme.colorScheme.primary
-            val tint = if (isSelected) selectedColor else Color.White
+            val tint = if (isSelected) selectedColor else Color(0xFF888888)
 
             NavigationBarItem(
                 selected = isSelected,
@@ -780,7 +780,7 @@ fun BottomNavigationBar(navController: NavController) {
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedTextColor = selectedColor,
-                    unselectedTextColor = Color.White,
+                    unselectedTextColor = Color(0xFF888888),
                     indicatorColor = Color.Transparent
                 )
             )
