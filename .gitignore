@@ -15,3 +15,4 @@
 local.properties
 /app/release/app-release.aab
 /app/google/googlePlay/release/app-googlePlay-release.aab
+/app/google/huawei/release/app-huawei-release.aab
