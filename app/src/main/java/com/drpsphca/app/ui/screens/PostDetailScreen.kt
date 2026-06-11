@@ -35,12 +35,64 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
+                @font-face {
+                    font-family: 'Gilroy';
+                    src: url('file:///android_res/font/phca_gilroy_regular.otf');
+                    font-weight: normal;
+                }
+                @font-face {
+                    font-family: 'Gilroy';
+                    src: url('file:///android_res/font/phca_gilroy_medium.otf');
+                    font-weight: 500;
+                }
+                @font-face {
+                    font-family: 'Gilroy';
+                    src: url('file:///android_res/font/phca_gilroy_bold.otf');
+                    font-weight: bold;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif.ttf');
+                    font-weight: normal;
+                    font-style: normal;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif_medium.ttf');
+                    font-weight: 500;
+                    font-style: normal;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif_bold.ttf');
+                    font-weight: bold;
+                    font-style: normal;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif_italic.ttf');
+                    font-weight: normal;
+                    font-style: italic;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif_medium_italic.ttf');
+                    font-weight: 500;
+                    font-style: italic;
+                }
+                @font-face {
+                    font-family: 'NotoSerif';
+                    src: url('file:///android_res/font/google_noto_serif_bold_italic.ttf');
+                    font-weight: bold;
+                    font-style: italic;
+                }
+
                 * {
                     box-sizing: border-box;
                     max-width: 100%;
                 }
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    font-family: 'NotoSerif', serif;
                     color: ${if (isDarkTheme) "#FFFFFF" else "#000000"};
                     background-color: ${if (isDarkTheme) "#121212" else "#FFFFFF"};
                     line-height: 1.6;
@@ -50,6 +102,7 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                     -webkit-text-size-adjust: 100%;
                 }
                 h1 {
+                    font-family: 'Gilroy', sans-serif;
                     font-weight: bold;
                     font-size: 1.5rem;
                     line-height: 1.2;

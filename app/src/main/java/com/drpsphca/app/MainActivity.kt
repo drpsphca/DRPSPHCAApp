@@ -82,6 +82,8 @@ import androidx.navigation.navArgument
 import coil.compose.AsyncImage
 import com.drpsphca.app.ui.screens.PostDetailScreen
 import com.drpsphca.app.ui.theme.DRPSPHCATheme
+import com.drpsphca.app.ui.theme.Gilroy
+import com.drpsphca.app.ui.theme.NotoSerif
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import com.drpsphca.app.ui.viewmodel.PostUiState
 import com.drpsphca.app.ui.viewmodel.WordPressViewModel
@@ -176,7 +178,9 @@ fun MorePopupMenu(
             text = { 
                 Text(
                     text = "Bookmarks",
-                    color = if (isOnline) MaterialTheme.colorScheme.onSurface else Color.Gray
+                    color = if (isOnline) MaterialTheme.colorScheme.onSurface else Color.Gray,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
                 ) 
             },
             onClick = {
@@ -197,7 +201,9 @@ fun MorePopupMenu(
             text = { 
                 Text(
                     text = "Downloads",
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
                 ) 
             },
             onClick = {
@@ -221,7 +227,9 @@ fun MorePopupMenu(
                         WordPressViewModel.DarkModeConfig.OFF -> "Dark Mode: OFF"
                         WordPressViewModel.DarkModeConfig.AUTO -> "Dark Mode: AUTO"
                     },
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
                 ) 
             },
             onClick = {
@@ -340,14 +348,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 .padding(paddingValues)
         ) {
             composable("home") {
-                HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+                HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
             composable("blog") {
-                BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+                BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
-// ...
             composable("newsletter") {
-                NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
+                NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
             composable(
                 "postdetail/{postId}",
@@ -357,7 +364,8 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 PostDetailRoute(
                     wordPressViewModel = wordPressViewModel,
                     navController = navController,
-                    postId = postId
+                    postId = postId,
+                    isDarkMode = isDarkMode
                 )
             }
             composable("webview/{url}") { backStackEntry ->
@@ -365,17 +373,17 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 WebViewScreen(url = url)
             }
             composable("search") {
-                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
             }
             composable("bookmarks") {
-                BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
             }
             composable("downloads") {
-                DownloadsScreen(navController = navController, wordPressViewModel = wordPressViewModel)
+                DownloadsScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
             }
             composable("tag/{tagName}") { backStackEntry ->
                 val tagName = backStackEntry.arguments?.getString("tagName") ?: ""
-                TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel)
+                TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
             }
         }
     }
@@ -386,7 +394,8 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 fun PostDetailRoute(
     wordPressViewModel: WordPressViewModel,
     navController: NavController,
-    postId: Int?
+    postId: Int?,
+    isDarkMode: Boolean
 ) {
     val context = LocalContext.current
     LaunchedEffect(postId) {
@@ -398,7 +407,15 @@ fun PostDetailRoute(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Post") },
+                title = { 
+                    Text(
+                        text = "Post",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -555,7 +572,8 @@ fun isOnline(context: Context): Boolean {
 fun HomeScreen(
     navController: NavController,
     wordPressViewModel: WordPressViewModel,
-    windowSize: WindowSize
+    windowSize: WindowSize,
+    isDarkMode: Boolean
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
@@ -604,7 +622,11 @@ fun HomeScreen(
                 item {
                     Text(
                         text = "Latest Newsletter",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Gilroy,
+                            color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF3C8E3E)
+                        ),
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -618,7 +640,7 @@ fun HomeScreen(
                         is NewsletterUiState.Success -> {
                             val newsletter = state.newsletters.firstOrNull()
                             if (newsletter != null) {
-                                NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
+                                NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize, isDarkMode = isDarkMode)
                             } else {
                                 Text("No newsletters available.", modifier = Modifier.padding(16.dp))
                             }
@@ -635,7 +657,11 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Latest Blog Posts",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Gilroy,
+                            color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF3C8E3E)
+                        ),
                         modifier = Modifier.padding(16.dp)
                     )
                 }
@@ -654,12 +680,12 @@ fun HomeScreen(
                         } else {
                             if (isCompact) {
                                 items(displayedPosts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController)
+                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
                                 }
                             } else {
                                 // Replaced LazyVerticalGrid with custom PostGrid composable for non-compact layout
                                 item {
-                                    PostGrid(posts = displayedPosts, navController = navController, columns = 2)
+                                    PostGrid(posts = displayedPosts, navController = navController, columns = 2, isDarkMode = isDarkMode)
                                 }
                             }
                         }
@@ -693,12 +719,18 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "Version ${BuildConfig.VERSION_NAME}",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Gilroy
+                            ),
                             color = Color.Gray
                         )
                         Text(
                             text = "© ${Calendar.getInstance().get(Calendar.YEAR)} DRPS PHCA",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Gilroy
+                            ),
                             color = Color.Gray
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -710,14 +742,26 @@ fun HomeScreen(
                                 val encodedUrl = Uri.encode("https://legal.drpsphca.com/terms")
                                 navController.navigate("webview/$encodedUrl")
                             }) {
-                                Text("Terms of Use")
+                                Text(
+                                    text = "Terms of Use",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Gilroy
+                                    )
+                                )
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             TextButton(onClick = {
                                 val encodedUrl = Uri.encode("https://legal.drpsphca.com/privacy")
                                 navController.navigate("webview/$encodedUrl")
                             }) {
-                                Text("Privacy Policy")
+                                Text(
+                                    text = "Privacy Policy",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Gilroy
+                                    )
+                                )
                             }
                         }
                     }
@@ -729,7 +773,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
+fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
@@ -741,7 +785,15 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
     Column {
         TopBarWithActions(
-            title = { Text("Blog") },
+            title = { 
+                Text(
+                    text = "Blog",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold
+                    )
+                ) 
+            },
             showSearch = true,
             darkModeConfig = darkModeConfig,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
@@ -777,7 +829,7 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController)
+                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
                                 }
                                 item {
                                     if (state.hasMore) {
@@ -808,7 +860,7 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
                                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController)
+                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
                                 }
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     if (state.hasMore) {
@@ -850,14 +902,22 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
+fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
     Column {
         TopBarWithActions(
-            title = { Text("Newsletter") },
+            title = { 
+                Text(
+                    text = "Newsletter",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold
+                    )
+                ) 
+            },
             showSearch = true,
             darkModeConfig = darkModeConfig,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
@@ -892,7 +952,7 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 items(state.newsletters, key = { it.id }) { newsletter ->
-                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
+                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize, isDarkMode = isDarkMode)
                                 }
                             }
                         } else {
@@ -903,7 +963,7 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(state.newsletters, key = { it.id }) { newsletter ->
-                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize)
+                                    NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize, isDarkMode = isDarkMode)
                                 }
                             }
                         }
@@ -930,7 +990,7 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
 }
 
 @Composable
-fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSize: WindowSize) {
+fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSize: WindowSize, isDarkMode: Boolean = false) {
     val isCompact = windowSize == WindowSize.COMPACT
     Card(modifier = Modifier
         .padding(8.dp)
@@ -948,10 +1008,20 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSi
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = post.plainTitle,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Gilroy,
+                            color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF025CA1)
+                        )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = post.formattedDate, 
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Normal
+                        )
+                    )
                 }
             }
         } else {
@@ -967,10 +1037,20 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSi
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = post.plainTitle,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Gilroy,
+                            color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF025CA1)
+                        )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = post.formattedDate, 
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Normal
+                        )
+                    )
                 }
             }
         }
@@ -999,7 +1079,8 @@ fun PostItem(
     post: PostItemUiModel, 
     navController: NavController, 
     highlightQuery: String? = null,
-    showTags: Boolean = true
+    showTags: Boolean = true,
+    isDarkMode: Boolean = false
 ) {
     Card(modifier = Modifier
         .padding(8.dp)
@@ -1023,12 +1104,28 @@ fun PostItem(
 
                 Text(
                     text = annotatedTitle,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Gilroy,
+                        color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF025CA1)
+                    )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = post.formattedDate, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = post.formattedDate, 
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal
+                    )
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = post.plainExcerpt, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = post.plainExcerpt, 
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal
+                    )
+                )
                 
                 if (showTags && post.tags.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1038,13 +1135,16 @@ fun PostItem(
                         items(post.tags) { tag ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                color = Color(0xFF0181E5),
                                 modifier = Modifier.clickable { navController.navigate("tag/${tag}") }
                             ) {
                                 Text(
                                     text = tag,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = Gilroy,
+                                        fontWeight = FontWeight.Medium
+                                    ),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
@@ -1079,7 +1179,7 @@ fun getHighlightedText(text: String, query: String): AnnotatedString {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
     var query by remember { mutableStateOf("") }
     var appliedQuery by remember { mutableStateOf("") }
     val uiState by wordPressViewModel.uiState.collectAsState()
@@ -1090,9 +1190,21 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                 TextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search Blog Posts...") },
+                    placeholder = { 
+                        Text(
+                            text = "Search Blog Posts...",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Normal
+                            )
+                        ) 
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal
+                    ),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -1132,7 +1244,8 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                             post = post, 
                             navController = navController, 
                             highlightQuery = appliedQuery,
-                            showTags = false
+                            showTags = false,
+                            isDarkMode = isDarkMode
                         )
                     }
                 }
@@ -1145,12 +1258,20 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
     val posts by wordPressViewModel.bookmarkedPosts.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bookmarks") },
+                title = { 
+                    Text(
+                        text = "Bookmarks",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -1173,7 +1294,7 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
                 items(posts) { post ->
-                    PostItem(post = post, navController = navController, showTags = false)
+                    PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
                 }
             }
         }
@@ -1182,12 +1303,20 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
     val posts by wordPressViewModel.downloadedPosts.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Downloads") },
+                title = { 
+                    Text(
+                        text = "Downloads",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -1210,7 +1339,7 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
                 items(posts) { post ->
-                    PostItem(post = post, navController = navController, showTags = false)
+                    PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
                 }
             }
         }
@@ -1219,7 +1348,7 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TagScreen(tagName: String, navController: NavController, wordPressViewModel: WordPressViewModel) {
+fun TagScreen(tagName: String, navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     LaunchedEffect(tagName) {
         wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, tag = tagName)
@@ -1227,7 +1356,15 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tag: $tagName") },
+                title = { 
+                    Text(
+                        text = "Tag: $tagName",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -1249,7 +1386,7 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
                 is PostUiState.Success -> {
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(state.posts) { post ->
-                            PostItem(post = post, navController = navController, showTags = false)
+                            PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
                         }
                     }
                 }
@@ -1261,7 +1398,7 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
 }
 
 @Composable
-fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns: Int) {
+fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns: Int, isDarkMode: Boolean) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1274,7 +1411,7 @@ fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns
             ) {
                 rowPosts.forEach { post ->
                     Box(modifier = Modifier.weight(1f)) {
-                        PostItem(post = post, navController = navController)
+                        PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
                     }
                 }
                 if (rowPosts.size < columns) {
@@ -1330,7 +1467,10 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
                 label = { 
                     Text(
                         text = screen.label,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Normal
+                        ),
                         color = if (isSelected) selectedColor else if (isDarkMode) Color.LightGray else Color(0xFF888888)
                     ) 
                 },

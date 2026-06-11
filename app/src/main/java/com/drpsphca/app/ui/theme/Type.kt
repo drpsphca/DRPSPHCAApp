@@ -6,10 +6,29 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontStyle
+import com.drpsphca.app.R
+
+val Gilroy = FontFamily(
+    Font(R.font.phca_gilroy_regular, FontWeight.Normal),
+    Font(R.font.phca_gilroy_medium, FontWeight.Medium),
+    Font(R.font.phca_gilroy_bold, FontWeight.Bold)
+)
+
+val NotoSerif = FontFamily(
+    Font(R.font.google_noto_serif, FontWeight.Normal),
+    Font(R.font.google_noto_serif_medium, FontWeight.Medium),
+    Font(R.font.google_noto_serif_bold, FontWeight.Bold),
+    Font(R.font.google_noto_serif_italic, FontWeight.Normal, FontStyle.Italic),
+    Font(R.font.google_noto_serif_medium_italic, FontWeight.Medium, FontStyle.Italic),
+    Font(R.font.google_noto_serif_bold_italic, FontWeight.Bold, FontStyle.Italic)
+)
+
 // Set of Material typography styles to start with
 val Typography = Typography(
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = Gilroy,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
