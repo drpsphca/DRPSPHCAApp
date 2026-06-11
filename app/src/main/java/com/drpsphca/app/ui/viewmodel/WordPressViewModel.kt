@@ -115,6 +115,16 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     private val _bookmarkingPostIds = MutableStateFlow<Set<Int>>(emptySet())
     val bookmarkingPostIds: StateFlow<Set<Int>> = _bookmarkingPostIds.asStateFlow()
 
+    enum class DarkModeConfig { ON, OFF, AUTO }
+    private val _darkModeConfig = MutableStateFlow(
+        DarkModeConfig.valueOf(prefs.getString("dark_mode_config", DarkModeConfig.AUTO.name) ?: DarkModeConfig.AUTO.name)
+    )
+    val darkModeConfig: StateFlow<DarkModeConfig> = _darkModeConfig.asStateFlow()
+
+    // Keep this for legacy or simple checks if needed, but UI will mostly use darkModeConfig
+    private val _isDarkMode = MutableStateFlow(prefs.getBoolean("dark_mode", false))
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
     private val wordPressApi = WordPressClient.api
     private val mutex = Mutex()
 
@@ -335,6 +345,25 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
                 onComplete(true)
             }
         }
+    }
+
+    fun toggleDarkMode() {
+        val nextConfig = when (_darkModeConfig.value) {
+            DarkModeConfig.AUTO -> DarkModeConfig.ON
+            DarkModeConfig.ON -> DarkModeConfig.OFF
+            DarkModeConfig.OFF -> DarkModeConfig.AUTO
+        }
+        _darkModeConfig.value = nextConfig
+        prefs.edit().putString("dark_mode_config", nextConfig.name).apply()
+        
+        // Update the legacy boolean for compatibility where used
+        val isDark = when (nextConfig) {
+            DarkModeConfig.ON -> true
+            DarkModeConfig.OFF -> false
+            DarkModeConfig.AUTO -> false // Default fallback
+        }
+        _isDarkMode.value = isDark
+        prefs.edit().putBoolean("dark_mode", isDark).apply()
     }
 
     fun fetchNextPage() {

@@ -17,8 +17,8 @@ import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun PostDetailScreen(post: PostDetailUiModel, isOffline: Boolean = false) {
-    val isDarkTheme = isSystemInDarkTheme()
+fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Boolean = false) {
+    val isDarkTheme = isDarkMode
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
 

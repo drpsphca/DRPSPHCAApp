@@ -125,6 +125,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
 
+import androidx.compose.foundation.isSystemInDarkTheme
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -134,9 +136,20 @@ class MainActivity : ComponentActivity() {
         initAds(this)
         
         setContent {
-            DRPSPHCATheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFFCFCFF)) {
-                    WordPressApp()
+            val wordPressViewModel: WordPressViewModel = viewModel()
+            val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+            val darkTheme = when (darkModeConfig) {
+                WordPressViewModel.DarkModeConfig.ON -> true
+                WordPressViewModel.DarkModeConfig.OFF -> false
+                WordPressViewModel.DarkModeConfig.AUTO -> isSystemInDarkTheme()
+            }
+            
+            DRPSPHCATheme(darkTheme = darkTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(), 
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    WordPressApp(wordPressViewModel)
                 }
             }
         }
@@ -147,9 +160,11 @@ class MainActivity : ComponentActivity() {
 fun MorePopupMenu(
     expanded: Boolean,
     isOnline: Boolean,
+    darkModeConfig: WordPressViewModel.DarkModeConfig,
     onDismissRequest: () -> Unit,
     onBookmarksClick: () -> Unit,
-    onDownloadsClick: () -> Unit
+    onDownloadsClick: () -> Unit,
+    onDarkModeToggle: () -> Unit
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -161,7 +176,7 @@ fun MorePopupMenu(
             text = { 
                 Text(
                     text = "Bookmarks",
-                    color = if (isOnline) Color.Unspecified else Color.Gray
+                    color = if (isOnline) MaterialTheme.colorScheme.onSurface else Color.Gray
                 ) 
             },
             onClick = {
@@ -174,12 +189,17 @@ fun MorePopupMenu(
                     painter = painterResource(id = R.drawable.phcaapp_bookmarks),
                     contentDescription = "Bookmarks",
                     modifier = Modifier.size(24.dp),
-                    tint = if (isOnline) Color.Unspecified else Color.Gray
+                    tint = if (isOnline) MaterialTheme.colorScheme.onSurface else Color.Gray
                 )
             }
         )
         DropdownMenuItem(
-            text = { Text("Downloads") },
+            text = { 
+                Text(
+                    text = "Downloads",
+                    color = MaterialTheme.colorScheme.onSurface
+                ) 
+            },
             onClick = {
                 onDownloadsClick()
                 onDismissRequest()
@@ -189,7 +209,31 @@ fun MorePopupMenu(
                     painter = painterResource(id = R.drawable.phcaapp_download),
                     contentDescription = "Downloads",
                     modifier = Modifier.size(24.dp),
-                    tint = Color.Unspecified
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { 
+                Text(
+                    text = when (darkModeConfig) {
+                        WordPressViewModel.DarkModeConfig.ON -> "Dark Mode: ON"
+                        WordPressViewModel.DarkModeConfig.OFF -> "Dark Mode: OFF"
+                        WordPressViewModel.DarkModeConfig.AUTO -> "Dark Mode: AUTO"
+                    },
+                    color = MaterialTheme.colorScheme.onSurface
+                ) 
+            },
+            onClick = {
+                onDarkModeToggle()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_darkmode),
+                    contentDescription = "Dark Mode",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         )
@@ -201,6 +245,8 @@ fun MorePopupMenu(
 fun TopBarWithActions(
     title: @Composable () -> Unit,
     showSearch: Boolean = false,
+    darkModeConfig: WordPressViewModel.DarkModeConfig = WordPressViewModel.DarkModeConfig.AUTO,
+    onDarkModeToggle: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onBookmarksClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {}
@@ -218,7 +264,7 @@ fun TopBarWithActions(
                         painter = painterResource(id = R.drawable.phcaapp_search),
                         contentDescription = "Search",
                         modifier = Modifier.size(32.dp),
-                        tint = Color.Unspecified
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -230,20 +276,22 @@ fun TopBarWithActions(
                         painter = painterResource(id = R.drawable.phcaapp_more),
                         contentDescription = "More",
                         modifier = Modifier.size(32.dp),
-                        tint = Color.Unspecified
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 MorePopupMenu(
                     expanded = showMoreMenu,
                     isOnline = isOnline,
+                    darkModeConfig = darkModeConfig,
                     onDismissRequest = { showMoreMenu = false },
                     onBookmarksClick = onBookmarksClick,
-                    onDownloadsClick = onDownloadsClick
+                    onDownloadsClick = onDownloadsClick,
+                    onDarkModeToggle = onDarkModeToggle
                 )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color(0xFFFCFCFF)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         windowInsets = WindowInsets(0, 0, 0, 0)
     )
@@ -252,11 +300,19 @@ fun TopBarWithActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+    val isSystemDark = isSystemInDarkTheme()
+    val isDarkMode = when (darkModeConfig) {
+        WordPressViewModel.DarkModeConfig.ON -> true
+        WordPressViewModel.DarkModeConfig.OFF -> false
+        WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkMode
         }
     }
     val navController = rememberNavController()
@@ -272,7 +328,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it })
             ) {
-                BottomNavigationBar(navController = navController)
+                BottomNavigationBar(navController = navController, isDarkMode = isDarkMode)
             }
         }
     ) { paddingValues ->
@@ -289,6 +345,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
             composable("blog") {
                 BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
             }
+// ...
             composable("newsletter") {
                 NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize)
             }
@@ -383,7 +440,7 @@ fun PostDetailRoute(
                                 Icon(
                                     painter = painterResource(id = R.drawable.phcaapp_bookmarks),
                                     contentDescription = "Bookmark",
-                                    tint = if (!isOnline) Color.Gray else if (isBookmarked) Color(0xFF128FF1) else Color.Black,
+                                    tint = if (!isOnline) Color.Gray else if (isBookmarked) Color(0xFF128FF1) else MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -410,7 +467,7 @@ fun PostDetailRoute(
                                 Icon(
                                     painter = painterResource(id = R.drawable.phcaapp_download),
                                     contentDescription = "Download",
-                                    tint = if (!isOnline) Color.Gray else if (isDownloaded) Color(0xFF4CAF50) else Color.Black,
+                                    tint = if (!isOnline) Color.Gray else if (isDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -423,13 +480,13 @@ fun PostDetailRoute(
                                 painter = painterResource(id = R.drawable.phcaapp_share),
                                 contentDescription = "Share",
                                 modifier = Modifier.size(24.dp),
-                                tint = Color.Unspecified
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFCFCFF)
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
@@ -445,7 +502,14 @@ fun PostDetailRoute(
 
                 is PostUiState.PostSuccess -> {
                     val isOffline = !isOnline(context)
-                    PostDetailScreen(post = state.post, isOffline = isOffline)
+                    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+                    val isSystemDark = isSystemInDarkTheme()
+                    val isDarkMode = when (darkModeConfig) {
+                        WordPressViewModel.DarkModeConfig.ON -> true
+                        WordPressViewModel.DarkModeConfig.OFF -> false
+                        WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
+                    }
+                    PostDetailScreen(post = state.post, isDarkMode = isDarkMode, isOffline = isOffline)
                 }
 
                 is PostUiState.Error -> {
@@ -496,6 +560,7 @@ fun HomeScreen(
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
     LaunchedEffect(Unit) {
@@ -512,6 +577,8 @@ fun HomeScreen(
                 )
             },
             showSearch = true,
+            darkModeConfig = darkModeConfig,
+            onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
@@ -665,6 +732,7 @@ fun HomeScreen(
 fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
     LaunchedEffect(Unit) {
@@ -675,6 +743,8 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
         TopBarWithActions(
             title = { Text("Blog") },
             showSearch = true,
+            darkModeConfig = darkModeConfig,
+            onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
@@ -782,15 +852,18 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 @Composable
 fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
     Column {
-        CenterAlignedTopAppBar(
+        TopBarWithActions(
             title = { Text("Newsletter") },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFFFCFCFF)
-            ),
-            windowInsets = WindowInsets(0, 0, 0, 0)
+            showSearch = true,
+            darkModeConfig = darkModeConfig,
+            onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onSearchClick = { navController.navigate("search") },
+            onBookmarksClick = { navController.navigate("bookmarks") },
+            onDownloadsClick = { navController.navigate("downloads") }
         )
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -1026,6 +1099,8 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                         disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
@@ -1036,9 +1111,16 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
             },
             navigationIcon = {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack, 
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-            }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         )
         // Results
         when (val state = uiState) {
@@ -1071,9 +1153,16 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
                 title = { Text("Bookmarks") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
@@ -1101,9 +1190,16 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
                 title = { Text("Downloads") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
@@ -1134,9 +1230,16 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
                 title = { Text("Tag: $tagName") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
@@ -1191,7 +1294,7 @@ sealed class Screen(val route: String, val label: String, @param:DrawableRes val
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavController) {
+fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
     val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter)
     val selectedColors = mapOf(
         Screen.Home.route to Color(0xFF128FF1),
@@ -1200,7 +1303,7 @@ fun BottomNavigationBar(navController: NavController) {
     )
 
     NavigationBar(
-        containerColor = Color(0xFFD4D4D4),
+        containerColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFD4D4D4),
         tonalElevation = 0.dp
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -1209,7 +1312,7 @@ fun BottomNavigationBar(navController: NavController) {
         items.forEach { screen ->
             val isSelected = currentRoute == screen.route
             val selectedColor = selectedColors[screen.route] ?: MaterialTheme.colorScheme.primary
-            val tint = if (isSelected) selectedColor else Color(0xFF888888)
+            val tint = if (isSelected) selectedColor else if (isDarkMode) Color.LightGray else Color(0xFF888888)
 
             NavigationBarItem(
                 selected = isSelected,
@@ -1227,7 +1330,8 @@ fun BottomNavigationBar(navController: NavController) {
                 label = { 
                     Text(
                         text = screen.label,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isSelected) selectedColor else if (isDarkMode) Color.LightGray else Color(0xFF888888)
                     ) 
                 },
                 icon = {
@@ -1240,7 +1344,7 @@ fun BottomNavigationBar(navController: NavController) {
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedTextColor = selectedColor,
-                    unselectedTextColor = Color(0xFF888888),
+                    unselectedTextColor = if (isDarkMode) Color.LightGray else Color(0xFF888888),
                     indicatorColor = Color.Transparent
                 )
             )
