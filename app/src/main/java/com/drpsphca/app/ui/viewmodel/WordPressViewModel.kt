@@ -2,6 +2,7 @@ package com.drpsphca.app.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.text.Html
 import android.util.Log
 import androidx.compose.runtime.Immutable
@@ -124,6 +125,12 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     // Keep this for legacy or simple checks if needed, but UI will mostly use darkModeConfig
     private val _isDarkMode = MutableStateFlow(prefs.getBoolean("dark_mode", false))
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
+    private val _notificationsEnabled = MutableStateFlow(prefs.getBoolean("notifications_enabled", false))
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
+
+    private val _navigateToPostId = MutableStateFlow<String?>(null)
+    val navigateToPostId: StateFlow<String?> = _navigateToPostId.asStateFlow()
 
     private val wordPressApi = WordPressClient.api
     private val mutex = Mutex()
@@ -364,6 +371,28 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
         _isDarkMode.value = isDark
         prefs.edit().putBoolean("dark_mode", isDark).apply()
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        _notificationsEnabled.value = enabled
+        prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+    }
+
+    fun toggleNotifications() {
+        val nextValue = !_notificationsEnabled.value
+        setNotificationsEnabled(nextValue)
+    }
+
+    fun onNotificationPostIdHandled() {
+        _navigateToPostId.value = null
+    }
+
+    fun handleNotificationIntent(intent: Intent?) {
+        val postId = intent?.getStringExtra("post_id")
+        if (postId != null) {
+            _navigateToPostId.value = postId
+            intent.removeExtra("post_id")
+        }
     }
 
     fun fetchNextPage() {

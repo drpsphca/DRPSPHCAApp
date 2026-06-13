@@ -36,8 +36,8 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun DRPSPHCATheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Dynamic color is disabled to use app's specific colors
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

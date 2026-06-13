@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -128,17 +129,54 @@ import android.net.NetworkCapabilities
 import android.content.Context
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        val wordPressViewModel: WordPressViewModel by lazy { 
+            androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
+        }
+        if (isGranted) {
+            wordPressViewModel.setNotificationsEnabled(true)
+        } else {
+            wordPressViewModel.setNotificationsEnabled(false)
+        }
+    }
+
+    fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val wordPressViewModel: WordPressViewModel by lazy { 
+            androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
+        }
+        wordPressViewModel.handleNotificationIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        
+        val wordPressViewModel: WordPressViewModel by lazy { 
+            androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
+        }
+        wordPressViewModel.handleNotificationIntent(intent)
         
         // Initialize Ads SDK (flavor-specific)
         initAds(this)
         
         setContent {
-            val wordPressViewModel: WordPressViewModel = viewModel()
             val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
             val darkTheme = when (darkModeConfig) {
                 WordPressViewModel.DarkModeConfig.ON -> true
@@ -163,10 +201,12 @@ fun MorePopupMenu(
     expanded: Boolean,
     isOnline: Boolean,
     darkModeConfig: WordPressViewModel.DarkModeConfig,
+    notificationsEnabled: Boolean,
     onDismissRequest: () -> Unit,
     onBookmarksClick: () -> Unit,
     onDownloadsClick: () -> Unit,
-    onDarkModeToggle: () -> Unit
+    onDarkModeToggle: () -> Unit,
+    onNotificationsToggle: () -> Unit
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -245,6 +285,28 @@ fun MorePopupMenu(
                 )
             }
         )
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = if (notificationsEnabled) "Notifications: ON" else "Notifications: OFF",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
+                )
+            },
+            onClick = {
+                onNotificationsToggle()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_bell),
+                    contentDescription = "Notifications",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        )
     }
 }
 
@@ -254,7 +316,9 @@ fun TopBarWithActions(
     title: @Composable () -> Unit,
     showSearch: Boolean = false,
     darkModeConfig: WordPressViewModel.DarkModeConfig = WordPressViewModel.DarkModeConfig.AUTO,
+    notificationsEnabled: Boolean = false,
     onDarkModeToggle: () -> Unit = {},
+    onNotificationsToggle: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onBookmarksClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {}
@@ -291,10 +355,12 @@ fun TopBarWithActions(
                     expanded = showMoreMenu,
                     isOnline = isOnline,
                     darkModeConfig = darkModeConfig,
+                    notificationsEnabled = notificationsEnabled,
                     onDismissRequest = { showMoreMenu = false },
                     onBookmarksClick = onBookmarksClick,
                     onDownloadsClick = onDownloadsClick,
-                    onDarkModeToggle = onDarkModeToggle
+                    onDarkModeToggle = onDarkModeToggle,
+                    onNotificationsToggle = onNotificationsToggle
                 )
             }
         },
@@ -309,6 +375,7 @@ fun TopBarWithActions(
 @Composable
 fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+    val notificationsEnabled by wordPressViewModel.notificationsEnabled.collectAsState()
     val isSystemDark = isSystemInDarkTheme()
     val isDarkMode = when (darkModeConfig) {
         WordPressViewModel.DarkModeConfig.ON -> true
@@ -316,6 +383,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
     }
 
+    val context = LocalContext.current
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -324,6 +392,15 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         }
     }
     val navController = rememberNavController()
+
+    val navigateToPostId by wordPressViewModel.navigateToPostId.collectAsState()
+    LaunchedEffect(navigateToPostId) {
+        navigateToPostId?.let { postId ->
+            navController.navigate("postdetail/$postId")
+            wordPressViewModel.onNotificationPostIdHandled()
+        }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route)
@@ -348,13 +425,67 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 .padding(paddingValues)
         ) {
             composable("home") {
-                HomeScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
+                HomeScreen(
+                    navController = navController, 
+                    wordPressViewModel = wordPressViewModel, 
+                    windowSize = windowSize, 
+                    isDarkMode = isDarkMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsToggle = {
+                        val activity = context as? MainActivity
+                        if (!notificationsEnabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                activity?.requestNotificationPermission()
+                            } else {
+                                wordPressViewModel.setNotificationsEnabled(true)
+                            }
+                        } else {
+                            wordPressViewModel.setNotificationsEnabled(false)
+                        }
+                    }
+                )
             }
             composable("blog") {
-                BlogScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
+                BlogScreen(
+                    navController = navController, 
+                    wordPressViewModel = wordPressViewModel, 
+                    windowSize = windowSize, 
+                    isDarkMode = isDarkMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsToggle = {
+                        val activity = context as? MainActivity
+                        if (!notificationsEnabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                activity?.requestNotificationPermission()
+                            } else {
+                                wordPressViewModel.setNotificationsEnabled(true)
+                            }
+                        } else {
+                            wordPressViewModel.setNotificationsEnabled(false)
+                        }
+                    }
+                )
             }
             composable("newsletter") {
-                NewsletterScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
+                NewsletterScreen(
+                    navController = navController, 
+                    wordPressViewModel = wordPressViewModel, 
+                    windowSize = windowSize, 
+                    isDarkMode = isDarkMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsToggle = {
+                        val activity = context as? MainActivity
+                        if (!notificationsEnabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                activity?.requestNotificationPermission()
+                            } else {
+                                wordPressViewModel.setNotificationsEnabled(true)
+                            }
+                        } else {
+                            wordPressViewModel.setNotificationsEnabled(false)
+                        }
+                    }
+                )
             }
             composable(
                 "postdetail/{postId}",
@@ -573,7 +704,9 @@ fun HomeScreen(
     navController: NavController,
     wordPressViewModel: WordPressViewModel,
     windowSize: WindowSize,
-    isDarkMode: Boolean
+    isDarkMode: Boolean,
+    notificationsEnabled: Boolean,
+    onNotificationsToggle: () -> Unit
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
@@ -596,7 +729,9 @@ fun HomeScreen(
             },
             showSearch = true,
             darkModeConfig = darkModeConfig,
+            notificationsEnabled = notificationsEnabled,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
@@ -773,7 +908,14 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
+fun BlogScreen(
+    navController: NavController, 
+    wordPressViewModel: WordPressViewModel, 
+    windowSize: WindowSize, 
+    isDarkMode: Boolean,
+    notificationsEnabled: Boolean,
+    onNotificationsToggle: () -> Unit
+) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
@@ -796,7 +938,9 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
             },
             showSearch = true,
             darkModeConfig = darkModeConfig,
+            notificationsEnabled = notificationsEnabled,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
@@ -902,7 +1046,14 @@ fun BlogScreen(navController: NavController, wordPressViewModel: WordPressViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
+fun NewsletterScreen(
+    navController: NavController, 
+    wordPressViewModel: WordPressViewModel, 
+    windowSize: WindowSize, 
+    isDarkMode: Boolean,
+    notificationsEnabled: Boolean,
+    onNotificationsToggle: () -> Unit
+) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
@@ -920,7 +1071,9 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
             },
             showSearch = true,
             darkModeConfig = darkModeConfig,
+            notificationsEnabled = notificationsEnabled,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
@@ -992,9 +1145,14 @@ fun NewsletterScreen(navController: NavController, wordPressViewModel: WordPress
 @Composable
 fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSize: WindowSize, isDarkMode: Boolean = false) {
     val isCompact = windowSize == WindowSize.COMPACT
-    Card(modifier = Modifier
-        .padding(8.dp)
-        .clickable { navController.navigate("postdetail/${post.id}") }) {
+    Card(
+        modifier = Modifier
+            .padding(8.dp)
+            .clickable { navController.navigate("postdetail/${post.id}") },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
+        )
+    ) {
         if (isCompact) {
             Column {
                 if (!post.imageUrl.isNullOrEmpty()) {
@@ -1082,10 +1240,15 @@ fun PostItem(
     showTags: Boolean = true,
     isDarkMode: Boolean = false
 ) {
-    Card(modifier = Modifier
-        .padding(8.dp)
-        .widthIn(max = 500.dp)
-        .clickable { navController.navigate("postdetail/${post.id}") }) {
+    Card(
+        modifier = Modifier
+            .padding(8.dp)
+            .widthIn(max = 500.dp)
+            .clickable { navController.navigate("postdetail/${post.id}") },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
+        )
+    ) {
         Column {
             if (!post.imageUrl.isNullOrEmpty()) {
                 AsyncImage(
