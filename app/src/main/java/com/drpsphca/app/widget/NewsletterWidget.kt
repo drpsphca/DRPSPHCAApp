@@ -38,6 +38,7 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.color.ColorProvider
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.glance.preview.Preview
 import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -63,7 +64,7 @@ class NewsletterWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun NewsletterWidgetContent() {
+    internal fun NewsletterWidgetContent() {
         val prefs = currentState<Preferences>()
         val postId = prefs[KEY_POST_ID]
         val title = prefs[KEY_TITLE]
@@ -88,12 +89,12 @@ class NewsletterWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun PreviewContentView() {
+    internal fun PreviewContentView() {
         WidgetLayout(title = "DRPS PHCA Newsletter")
     }
 
     @Composable
-    private fun WidgetLayout(title: String, imagePath: String? = null, clickAction: androidx.glance.action.Action? = null) {
+    internal fun WidgetLayout(title: String, imagePath: String? = null, clickAction: androidx.glance.action.Action? = null) {
         val context = LocalContext.current
         val density = context.resources.displayMetrics.density
         

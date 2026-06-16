@@ -28,10 +28,10 @@
       </SelectionState>
       <SelectionState runConfigName="unitTest">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-06-10T08:39:17.563523900Z">
+        <DropdownSelection timestamp="2026-06-06T11:05:51.491660600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=RFGL30TLKQE" />
+              <DeviceId pluginId="Default" identifier="serial=localhost:53353;connection=dfcf4811" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -83,20 +83,7 @@
             </handle>
           </Target>
         </DropdownSelection>
-        <DialogSelection>
-          <targets>
-            <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\fongl\.android\avd\DRPS_PHCA_Phone_1080p.avd" />
-              </handle>
-            </Target>
-            <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=RFGL30TLKQE" />
-              </handle>
-            </Target>
-          </targets>
-        </DialogSelection>
+        <DialogSelection />
       </SelectionState>
     </selectionStates>
   </component>

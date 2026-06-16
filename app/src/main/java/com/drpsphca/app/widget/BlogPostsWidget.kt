@@ -42,6 +42,7 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.glance.preview.Preview
 import com.drpsphca.app.R
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -65,7 +66,7 @@ class BlogPostsWidget : GlanceAppWidget() {
     }
                         
     @Composable
-    private fun BlogWidgetContent() {
+    internal fun BlogWidgetContent() {
         val prefs = currentState<Preferences>()
         val postsData = prefs[KEY_POSTS_DATA]
         val index = prefs[KEY_INDEX] ?: 0
@@ -116,7 +117,7 @@ class BlogPostsWidget : GlanceAppWidget() {
 
     
     @Composable
-    private fun PreviewContentView() {
+    internal fun PreviewContentView() {
         WidgetLayout(
             title = "DRPS PHCA Blog Posts",
             excerpt = "Powered by DRPSPHCA.com",
@@ -128,7 +129,7 @@ class BlogPostsWidget : GlanceAppWidget() {
     }
     
     @Composable
-    private fun WidgetLayout(
+    internal fun WidgetLayout(
         title: String,
         excerpt: String,
         imagePath: String?,
