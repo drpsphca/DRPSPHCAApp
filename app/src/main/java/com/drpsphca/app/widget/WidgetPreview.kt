@@ -6,7 +6,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.preview.ExperimentalGlancePreviewApi
 
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview
+@Preview(widthDp = 210, heightDp = 280)
 @Composable
 fun BlogPostsWidgetPreview() {
     GlanceTheme {
@@ -15,7 +15,7 @@ fun BlogPostsWidgetPreview() {
 }
 
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview
+@Preview(widthDp = 210, heightDp = 280)
 @Composable
 fun NewsletterWidgetPreview() {
     GlanceTheme {

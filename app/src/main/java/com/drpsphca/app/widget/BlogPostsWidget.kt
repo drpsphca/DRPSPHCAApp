@@ -140,7 +140,7 @@ class BlogPostsWidget : GlanceAppWidget() {
     ) {
         val context = LocalContext.current
         val density = context.resources.displayMetrics.density
-        val maxWidth = (280 * density).toInt()
+        val maxWidth = (210 * density).toInt()
         
         // Use White text as requested
         val textColor = Color.White
@@ -201,7 +201,7 @@ class BlogPostsWidget : GlanceAppWidget() {
                     Image(
                         provider = ImageProvider(R.drawable.logo),
                         contentDescription = "Logo",
-                        modifier = GlanceModifier.width(180.dp)
+                        modifier = GlanceModifier.width(140.dp)
                     )
                 }
                 // Navigation buttons: Left, Right, Refresh

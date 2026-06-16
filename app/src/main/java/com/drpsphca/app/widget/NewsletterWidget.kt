@@ -101,8 +101,8 @@ class NewsletterWidget : GlanceAppWidget() {
         // Use White text as requested
         val textColor = Color.White
         
-        // Calculate max width for text (widget is 4x3, roughly 320dp wide)
-        val textWidthPx = (280 * density).toInt()
+        // Calculate max width for text (widget is 3x4, roughly 210dp wide)
+        val textWidthPx = (210 * density).toInt()
 
         val titleBitmap = WidgetUtils.textToBitmap(
             context = context,
@@ -152,7 +152,7 @@ class NewsletterWidget : GlanceAppWidget() {
                         provider = ImageProvider(R.drawable.logo),
                         contentDescription = "Logo",
                         modifier = GlanceModifier
-                            .width(200.dp)
+                            .width(140.dp)
                     )
                 }
                 
