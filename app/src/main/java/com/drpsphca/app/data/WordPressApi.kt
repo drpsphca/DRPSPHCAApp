@@ -11,7 +11,7 @@ interface WordPressApi {
         @Query("per_page") perPage: Int = 10,
         @Query("categories") categories: Int? = null,
         @Query("search") search: String? = null,
-        @Query("tags") tags: String? = null
+        @Query("tags") tags: String? = null,
     ): List<Post>
 
     @GET("wp/v2/posts/{id}?_embed")

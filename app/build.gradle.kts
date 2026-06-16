@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -39,7 +40,7 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -60,7 +61,7 @@ dependencies {
     "huaweiImplementation"(libs.huawei.ads)
     "googlePlayImplementation"(libs.google.ads)
     implementation(libs.androidx.fragment)
-    implementation(platform("com.google.firebase:firebase-bom:34.14.1"))
+    implementation(platform(libs.firebase.bom))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
     implementation(libs.androidx.core.ktx)
@@ -88,5 +89,11 @@ dependencies {
     implementation(libs.androidx.startup.runtime)
     implementation(libs.coil.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.datastore.preferences)
     implementation(project(":shared"))
+    implementation("androidx.room:room-runtime:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
 }

@@ -48,9 +48,16 @@
 
 # --- Room & WorkManager ---
 # Keep Room generated classes, especially for WorkManager's internal database.
--keep class * extends androidx.room.RoomDatabase
--keep class * extends androidx.room.RoomDatabase {
-    <init>(...);
-}
--dontwarn androidx.room.paging.**
+
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
+
+# --- Glance ---
+-keep class * implements androidx.glance.appwidget.action.ActionCallback {
+    public <init>();
+}
+
+-keep class com.drpsphca.app.widget.** { *; }
+
+

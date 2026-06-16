@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">DRPS PHCA</string>
+    <string name="newsletter_widget_name">Newsletter</string>
+    <string name="blog_posts_widget_name">Blog Posts</string>
+    <string name="newsletter_widget_description">Displays the latest newsletter from DRPSPHCA.com</string>
+    <string name="blog_posts_widget_description">Displays scrollable blog posts from DRPSPHCA.com</string>
 </resources>

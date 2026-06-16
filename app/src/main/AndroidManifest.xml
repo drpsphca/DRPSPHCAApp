@@ -32,10 +32,39 @@
             android:theme="@style/Theme.DRPSPHCA">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="drpsphca" android:host="post" />
+            </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".widget.NewsletterWidgetReceiver"
+            android:exported="false"
+            android:label="@string/newsletter_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/newsletter_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.BlogPostsWidgetReceiver"
+            android:exported="false"
+            android:label="@string/blog_posts_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/blog_posts_widget_info" />
+        </receiver>
 
         <provider
             android:name="androidx.startup.InitializationProvider"

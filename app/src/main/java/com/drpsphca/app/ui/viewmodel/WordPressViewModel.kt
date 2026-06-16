@@ -388,10 +388,10 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun handleNotificationIntent(intent: Intent?) {
-        val postId = intent?.getStringExtra("post_id")
+        val postId = intent?.getStringExtra("post_id") ?: intent?.data?.getQueryParameter("id")
         if (postId != null) {
             _navigateToPostId.value = postId
-            intent.removeExtra("post_id")
+            intent?.removeExtra("post_id")
         }
     }
 

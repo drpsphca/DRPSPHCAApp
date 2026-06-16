@@ -168,6 +168,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
+        // Schedule widget updates
+        val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.drpsphca.app.widget.WidgetUpdateWorker>(
+            1, java.util.concurrent.TimeUnit.HOURS
+        ).build()
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "widget_update",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+
         val wordPressViewModel: WordPressViewModel by lazy { 
             androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
         }
