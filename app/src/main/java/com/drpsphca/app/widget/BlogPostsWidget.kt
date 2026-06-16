@@ -17,6 +17,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -42,7 +43,6 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.state.PreferencesGlanceStateDefinition
-import androidx.glance.preview.Preview
 import com.drpsphca.app.R
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -50,6 +50,7 @@ import com.google.gson.reflect.TypeToken
 class BlogPostsWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
+    override val sizeMode = androidx.glance.appwidget.SizeMode.Exact
 
     companion object {
         val KEY_POSTS_DATA = stringPreferencesKey("posts_data")
@@ -139,8 +140,11 @@ class BlogPostsWidget : GlanceAppWidget() {
         clickAction: androidx.glance.action.Action? = null
     ) {
         val context = LocalContext.current
+        val size = LocalSize.current
         val density = context.resources.displayMetrics.density
-        val maxWidth = (210 * density).toInt()
+        val widgetWidthPx = (size.width.value * density).toInt()
+        val horizontalPaddingPx = (24 * density).toInt() // 12dp * 2
+        val maxWidth = widgetWidthPx - horizontalPaddingPx
         
         // Use White text as requested
         val textColor = Color.White
@@ -201,6 +205,7 @@ class BlogPostsWidget : GlanceAppWidget() {
                     Image(
                         provider = ImageProvider(R.drawable.logo),
                         contentDescription = "Logo",
+                        contentScale = ContentScale.Fit,
                         modifier = GlanceModifier.width(140.dp)
                     )
                 }
@@ -257,13 +262,15 @@ class BlogPostsWidget : GlanceAppWidget() {
                 Image(
                     provider = ImageProvider(titleBitmap),
                     contentDescription = title,
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    modifier = GlanceModifier.fillMaxWidth()
                 )
                 Spacer(GlanceModifier.height(4.dp))
                 Image(
                     provider = ImageProvider(excerptBitmap),
                     contentDescription = excerpt,
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    modifier = GlanceModifier.fillMaxWidth()
                 )
             }
         }

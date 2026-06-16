@@ -17,6 +17,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -48,6 +49,7 @@ import com.drpsphca.app.R
 class NewsletterWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
+    override val sizeMode = androidx.glance.appwidget.SizeMode.Exact
 
     companion object {
         val KEY_POST_ID = intPreferencesKey("post_id")
@@ -96,13 +98,16 @@ class NewsletterWidget : GlanceAppWidget() {
     @Composable
     internal fun WidgetLayout(title: String, imagePath: String? = null, clickAction: androidx.glance.action.Action? = null) {
         val context = LocalContext.current
+        val size = LocalSize.current
         val density = context.resources.displayMetrics.density
         
         // Use White text as requested
         val textColor = Color.White
         
-        // Calculate max width for text (widget is 3x4, roughly 210dp wide)
-        val textWidthPx = (210 * density).toInt()
+        // Calculate max width for text (widget is 3x4, roughly 210dp wide, but use actual size)
+        val widgetWidthPx = (size.width.value * density).toInt()
+        val horizontalPaddingPx = (32 * density).toInt() // 16dp * 2
+        val textWidthPx = widgetWidthPx - horizontalPaddingPx
 
         val titleBitmap = WidgetUtils.textToBitmap(
             context = context,
@@ -151,6 +156,7 @@ class NewsletterWidget : GlanceAppWidget() {
                     Image(
                         provider = ImageProvider(R.drawable.logo),
                         contentDescription = "Logo",
+                        contentScale = ContentScale.Fit,
                         modifier = GlanceModifier
                             .width(140.dp)
                     )
