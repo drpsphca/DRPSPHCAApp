@@ -133,19 +133,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        val wordPressViewModel: WordPressViewModel by lazy { 
+        val wordPressViewModel: WordPressViewModel by lazy {
             androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
         }
         if (isGranted) {
             wordPressViewModel.setNotificationsEnabled(true)
+            // Auto-subscribe once permission is granted (Android 13+)
+            FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
         } else {
             wordPressViewModel.setNotificationsEnabled(false)
+            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
         }
     }
 
@@ -448,9 +452,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                                 activity?.requestNotificationPermission()
                             } else {
                                 wordPressViewModel.setNotificationsEnabled(true)
+                                // Auto-subscribe on older devices (no permission prompt needed)
+                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
                             }
                         } else {
                             wordPressViewModel.setNotificationsEnabled(false)
+                            // Auto-unsubscribe when toggling OFF
+                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
                     }
                 )
@@ -469,9 +477,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                                 activity?.requestNotificationPermission()
                             } else {
                                 wordPressViewModel.setNotificationsEnabled(true)
+                                // Auto-subscribe on older devices (no permission prompt needed)
+                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
                             }
                         } else {
                             wordPressViewModel.setNotificationsEnabled(false)
+                            // Auto-unsubscribe when toggling OFF
+                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
                     }
                 )
@@ -490,9 +502,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                                 activity?.requestNotificationPermission()
                             } else {
                                 wordPressViewModel.setNotificationsEnabled(true)
+                                // Auto-subscribe on older devices (no permission prompt needed)
+                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
                             }
                         } else {
                             wordPressViewModel.setNotificationsEnabled(false)
+                            // Auto-unsubscribe when toggling OFF
+                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
                     }
                 )
