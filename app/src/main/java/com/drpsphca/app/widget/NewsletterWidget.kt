@@ -34,6 +34,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
@@ -92,7 +93,19 @@ class NewsletterWidget : GlanceAppWidget() {
 
     @Composable
     internal fun PreviewContentView() {
-        WidgetLayout(title = "DRPS PHCA Newsletter")
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(Color(0xFFF1F1F1)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = GlanceModifier.fillMaxSize().padding(32.dp)
+            )
+        }
     }
 
     @Composable
@@ -101,10 +114,10 @@ class NewsletterWidget : GlanceAppWidget() {
         val size = LocalSize.current
         val density = context.resources.displayMetrics.density
         
-        // Use White text as requested
-        val textColor = Color.White
+        val isDarkMode = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val titleColor = if (isDarkMode) Color.White else Color(0xFF025CA1)
         
-        // Calculate max width for text (widget is 3x4, roughly 210dp wide, but use actual size)
+        // Calculate max width for text (widget is 4x3)
         val widgetWidthPx = (size.width.value * density).toInt()
         val horizontalPaddingPx = (32 * density).toInt() // 16dp * 2
         val textWidthPx = widgetWidthPx - horizontalPaddingPx
@@ -113,7 +126,7 @@ class NewsletterWidget : GlanceAppWidget() {
             context = context,
             text = title,
             fontSizeSp = 28f, // Larger enough font
-            color = textColor,
+            color = titleColor,
             fontResId = R.font.phca_gilroy_medium,
             maxWidthPx = textWidthPx
         )
@@ -147,20 +160,6 @@ class NewsletterWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxSize()
                     )
                 }
-
-                // Logo on top left - Truly top-left corner
-                Box(
-                    modifier = GlanceModifier.fillMaxSize(),
-                    contentAlignment = Alignment.TopStart
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.logo),
-                        contentDescription = "Logo",
-                        contentScale = ContentScale.Fit,
-                        modifier = GlanceModifier
-                            .width(140.dp)
-                    )
-                }
                 
                 // Refresh button on top right
                 Box(
@@ -184,7 +183,6 @@ class NewsletterWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .defaultWeight()
-                    .background(if (textColor == Color.White) ColorProvider(day = Color(0xFF000000).copy(alpha = 0.6f), night = Color(0xFF000000).copy(alpha = 0.6f)) else WidgetColors.background)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start
