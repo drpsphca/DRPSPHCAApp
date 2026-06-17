@@ -119,14 +119,19 @@ class BlogPostsWidget : GlanceAppWidget() {
     
     @Composable
     internal fun PreviewContentView() {
-        WidgetLayout(
-            title = "DRPS PHCA Blog Posts",
-            excerpt = "Powered by DRPSPHCA.com",
-            imagePath = null,
-            tags = emptyList(),
-            index = 0,
-            total = 1
-        )
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(Color(0xFFF1F1F1)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = GlanceModifier.fillMaxSize().padding(32.dp)
+            )
+        }
     }
     
     @Composable
@@ -146,14 +151,16 @@ class BlogPostsWidget : GlanceAppWidget() {
         val horizontalPaddingPx = (24 * density).toInt() // 12dp * 2
         val maxWidth = widgetWidthPx - horizontalPaddingPx
         
-        // Use White text as requested
-        val textColor = Color.White
+        val isDarkMode = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        
+        val titleColor = if (isDarkMode) Color.White else Color(0xFF025CA1)
+        val excerptColor = if (isDarkMode) Color.White else Color(0xFF121212)
 
         val titleBitmap = WidgetUtils.textToBitmap(
             context = context,
             text = title,
             fontSizeSp = 24f, // Enlarged
-            color = textColor,
+            color = titleColor,
             fontResId = R.font.phca_gilroy_medium,
             maxWidthPx = maxWidth
         )
@@ -162,7 +169,7 @@ class BlogPostsWidget : GlanceAppWidget() {
             context = context,
             text = excerpt,
             fontSizeSp = 16f, // Enlarged
-            color = textColor,
+            color = excerptColor,
             fontResId = R.font.phca_gilroy_regular,
             maxWidthPx = maxWidth
         )
@@ -197,18 +204,6 @@ class BlogPostsWidget : GlanceAppWidget() {
                     )
                 }
 
-                // Logo on top left - Truly top-left
-                Box(
-                    modifier = GlanceModifier.fillMaxSize(),
-                    contentAlignment = Alignment.TopStart
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.logo),
-                        contentDescription = "Logo",
-                        contentScale = ContentScale.Fit,
-                        modifier = GlanceModifier.width(140.dp)
-                    )
-                }
                 // Navigation buttons: Left, Right, Refresh
                 Row(
                     modifier = GlanceModifier.fillMaxWidth().padding(8.dp),
@@ -249,12 +244,11 @@ class BlogPostsWidget : GlanceAppWidget() {
                     )
                 }
             }
-            // Bottom part (Title + Excerpt + Tags) - 50%
+            // Bottom part (Title + Excerpt) - 50%
             Column(
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .defaultWeight()
-                    .background(Color(0xFF000000).copy(alpha = 0.6f)) // Darken to show white text
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start

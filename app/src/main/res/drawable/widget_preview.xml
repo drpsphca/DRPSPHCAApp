@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="#F1F1F1" />
+        </shape>
+    </item>
+    <item
+        android:left="40dp"
+        android:right="40dp"
+        android:top="20dp"
+        android:bottom="20dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/logo"
+            android:gravity="center"
+            android:mipMap="true" />
+    </item>
+</layer-list>

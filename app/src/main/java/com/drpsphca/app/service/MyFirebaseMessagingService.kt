@@ -128,6 +128,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    @Suppress("OVERRIDE_DEPRECATION")
     override fun onNewToken(token: String) {
         // Handle token if needed
     }
