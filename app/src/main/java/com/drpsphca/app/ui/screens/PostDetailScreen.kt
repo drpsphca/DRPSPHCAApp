@@ -315,6 +315,7 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                         javaScriptEnabled = true
                         domStorageEnabled = true
                         mediaPlaybackRequiresUserGesture = false
+                        allowFileAccess = true
                         
                         // Use false for more predictable mobile rendering of our custom HTML
                         useWideViewPort = false

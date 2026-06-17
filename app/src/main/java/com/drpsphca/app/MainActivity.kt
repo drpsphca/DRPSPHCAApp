@@ -1171,6 +1171,7 @@ fun NewsletterScreen(
 @Composable
 fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSize: WindowSize, isDarkMode: Boolean = false) {
     val isCompact = windowSize == WindowSize.COMPACT
+    val imageSource = post.localImageUrl ?: post.imageUrl
     Card(
         modifier = Modifier
             .padding(8.dp)
@@ -1181,9 +1182,9 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSi
     ) {
         if (isCompact) {
             Column {
-                if (!post.imageUrl.isNullOrEmpty()) {
+                if (!imageSource.isNullOrEmpty()) {
                     AsyncImage(
-                        model = post.imageUrl,
+                        model = imageSource,
                         contentDescription = post.plainTitle,
                         modifier = Modifier.fillMaxWidth().height(180.dp),
                         contentScale = ContentScale.Crop
@@ -1210,9 +1211,9 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSi
             }
         } else {
             Row(modifier = Modifier.fillMaxWidth()) {
-                if (!post.imageUrl.isNullOrEmpty()) {
+                if (!imageSource.isNullOrEmpty()) {
                     AsyncImage(
-                        model = post.imageUrl,
+                        model = imageSource,
                         contentDescription = post.plainTitle,
                         modifier = Modifier.width(250.dp).height(200.dp),
                         contentScale = ContentScale.Crop
@@ -1266,6 +1267,7 @@ fun PostItem(
     showTags: Boolean = true,
     isDarkMode: Boolean = false
 ) {
+    val imageSource = post.localImageUrl ?: post.imageUrl
     Card(
         modifier = Modifier
             .padding(8.dp)
@@ -1276,9 +1278,9 @@ fun PostItem(
         )
     ) {
         Column {
-            if (!post.imageUrl.isNullOrEmpty()) {
+            if (!imageSource.isNullOrEmpty()) {
                 AsyncImage(
-                    model = post.imageUrl,
+                    model = imageSource,
                     contentDescription = post.plainTitle,
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.Crop

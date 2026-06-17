@@ -25,6 +25,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -57,7 +64,8 @@ data class PostItemUiModel(
     val plainTitle: String,
     val plainExcerpt: String,
     val imageUrl: String?,
-    val tags: List<String>
+    val tags: List<String>,
+    val localImageUrl: String? = null
 )
 
 @Immutable
@@ -69,7 +77,8 @@ data class PostDetailUiModel(
     val content: String,
     val imageUrl: String?,
     val tags: List<String>,
-    val link: String
+    val link: String,
+    val localImageUrl: String? = null
 ) {
     fun toItemUiModel(): PostItemUiModel {
         return PostItemUiModel(
@@ -78,7 +87,8 @@ data class PostDetailUiModel(
             plainTitle = plainTitle,
             plainExcerpt = plainExcerpt,
             imageUrl = imageUrl,
-            tags = tags
+            tags = tags,
+            localImageUrl = localImageUrl
         )
     }
 }
@@ -291,11 +301,11 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun toggleDownload(post: PostItemUiModel, onComplete: (Boolean) -> Unit) {
-        val isCurrentlyDownloaded = _downloadedPosts.value.any { it.id == post.id }
-        if (isCurrentlyDownloaded) {
+        val downloadedPost = _downloadedPosts.value.find { it.id == post.id }
+        if (downloadedPost != null) {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
-                kotlinx.coroutines.delay(1000) // Simulate processing
+                deletePostFiles(downloadedPost)
                 _downloadedPosts.update { list -> 
                     val newList = list.filter { it.id != post.id }
                     saveDownloads(newList)
@@ -308,7 +318,20 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
                 try {
-                    val detail = wordPressApi.getPost(post.id).toDetailUiModel()
+                    var detail = wordPressApi.getPost(post.id).toDetailUiModel()
+                    
+                    // Download featured image
+                    detail.imageUrl?.let { url ->
+                        val localPath = downloadAndSaveImage(url, "post_${post.id}_featured.jpg")
+                        if (localPath != null) {
+                            detail = detail.copy(localImageUrl = localPath)
+                        }
+                    }
+                    
+                    // Download content images
+                    val updatedContent = processContentImages(detail.content, post.id)
+                    detail = detail.copy(content = updatedContent)
+
                     _downloadedPosts.update { list -> 
                         val newList = list + detail
                         saveDownloads(newList)
@@ -326,11 +349,11 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun toggleDownload(post: PostDetailUiModel, onComplete: (Boolean) -> Unit) {
-        val isCurrentlyDownloaded = _downloadedPosts.value.any { it.id == post.id }
-        if (isCurrentlyDownloaded) {
+        val downloadedPost = _downloadedPosts.value.find { it.id == post.id }
+        if (downloadedPost != null) {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
-                kotlinx.coroutines.delay(1000) // Simulate processing
+                deletePostFiles(downloadedPost)
                 _downloadedPosts.update { list -> 
                     val newList = list.filter { it.id != post.id }
                     saveDownloads(newList)
@@ -342,14 +365,86 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         } else {
             viewModelScope.launch {
                 _downloadingPostIds.update { it + post.id }
-                kotlinx.coroutines.delay(1000) // Simulate saving
-                _downloadedPosts.update { list -> 
-                    val newList = list + post
-                    saveDownloads(newList)
-                    newList
+                try {
+                    var detail = post
+                    
+                    // Download featured image
+                    detail.imageUrl?.let { url ->
+                        val localPath = downloadAndSaveImage(url, "post_${post.id}_featured.jpg")
+                        if (localPath != null) {
+                            detail = detail.copy(localImageUrl = localPath)
+                        }
+                    }
+                    
+                    // Download content images
+                    val updatedContent = processContentImages(detail.content, post.id)
+                    detail = detail.copy(content = updatedContent)
+
+                    _downloadedPosts.update { list -> 
+                        val newList = list + detail
+                        saveDownloads(newList)
+                        newList
+                    }
+                    onComplete(true)
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error downloading post", e)
+                    onComplete(false)
+                } finally {
+                    _downloadingPostIds.update { it - post.id }
                 }
-                _downloadingPostIds.update { it - post.id }
-                onComplete(true)
+            }
+        }
+    }
+
+    private suspend fun downloadAndSaveImage(url: String, fileName: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val connection = URL(url).openConnection()
+                connection.doInput = true
+                connection.connect()
+                val input = connection.getInputStream()
+                val bitmap = BitmapFactory.decodeStream(input) ?: return@withContext null
+                
+                val file = File(getApplication<Application>().filesDir, fileName)
+                FileOutputStream(file).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                file.absolutePath
+            } catch (e: Exception) {
+                Log.e("WordPressViewModel", "Error saving image: $url", e)
+                null
+            }
+        }
+    }
+
+    private suspend fun processContentImages(content: String, postId: Int): String {
+        var updatedContent = content
+        val imgRegex = """<img[^>]+src=["']([^"']+)["'][^>]*>""".toRegex()
+        val matches = imgRegex.findAll(content)
+        
+        matches.forEachIndexed { index, matchResult ->
+            val url = matchResult.groups[1]?.value
+            if (url != null && url.startsWith("http")) {
+                val extension = url.substringAfterLast(".", "jpg").substringBefore("?")
+                val fileName = "post_${postId}_content_${index}.$extension"
+                val localPath = downloadAndSaveImage(url, fileName)
+                if (localPath != null) {
+                    updatedContent = updatedContent.replace(url, "file://$localPath")
+                }
+            }
+        }
+        return updatedContent
+    }
+
+    private fun deletePostFiles(post: PostDetailUiModel) {
+        viewModelScope.launch(Dispatchers.IO) {
+            post.localImageUrl?.let { File(it).delete() }
+            val imgRegex = """file://([^"'\s>]+)""".toRegex()
+            imgRegex.findAll(post.content).forEach { match ->
+                val path = match.groups[1]?.value
+                if (path != null) {
+                    File(path).delete()
+                }
             }
         }
     }
@@ -472,7 +567,8 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
             plainTitle = plainTitle,
             plainExcerpt = plainExcerpt,
             imageUrl = imageUrl,
-            tags = tags
+            tags = tags,
+            localImageUrl = null
         )
     }
 
@@ -496,7 +592,8 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
             content = contentAsString,
             imageUrl = imageUrl,
             tags = tags,
-            link = link
+            link = link,
+            localImageUrl = null
         )
     }
 }
