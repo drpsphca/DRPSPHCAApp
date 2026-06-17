@@ -316,6 +316,7 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                         domStorageEnabled = true
                         mediaPlaybackRequiresUserGesture = false
                         allowFileAccess = true
+                        allowContentAccess = true
                         
                         // Use false for more predictable mobile rendering of our custom HTML
                         useWideViewPort = false
@@ -342,7 +343,9 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL("https://drpsphca.com", htmlContent, "text/html", "utf-8", null)
+                // Using null base URL or "file:///" can help with local file access and avoid mixed content issues
+                val baseUrl = if (isOffline) "file:///" else "https://drpsphca.com"
+                webView.loadDataWithBaseURL(baseUrl, htmlContent, "text/html", "utf-8", null)
             },
             modifier = Modifier.fillMaxSize()
         )

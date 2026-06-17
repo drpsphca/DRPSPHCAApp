@@ -178,7 +178,7 @@ class MainActivity : ComponentActivity() {
         ).build()
         androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "widget_update",
-            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            androidx.work.ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
 

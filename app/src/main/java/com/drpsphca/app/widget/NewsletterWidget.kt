@@ -26,6 +26,8 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.getAppWidgetState
+import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -45,6 +47,8 @@ import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.drpsphca.app.R
 
 class NewsletterWidget : GlanceAppWidget() {
@@ -59,6 +63,13 @@ class NewsletterWidget : GlanceAppWidget() {
     }
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // Trigger an update if data is missing
+        val prefs = getAppWidgetState<Preferences>(context, PreferencesGlanceStateDefinition, id)
+        if (prefs[KEY_POST_ID] == null) {
+            val workRequest = OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build()
+            WorkManager.getInstance(context).enqueue(workRequest)
+        }
+
         provideContent {
             GlanceTheme {
                 NewsletterWidgetContent()
@@ -200,8 +211,8 @@ class NewsletterWidget : GlanceAppWidget() {
 
 class NewsletterRefreshCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build()
-        androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
+        val workRequest = OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build()
+        WorkManager.getInstance(context).enqueue(workRequest)
     }
 }
 

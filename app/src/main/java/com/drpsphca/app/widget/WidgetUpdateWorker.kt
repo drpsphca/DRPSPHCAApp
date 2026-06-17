@@ -39,9 +39,10 @@ class WidgetUpdateWorker(
             val newsletterCat = categories.find { 
                 it.slug.equals("newsletter", ignoreCase = true) || 
                 it.name.contains("Newsletter", ignoreCase = true) 
-            }
+            } ?: categories.find { it.slug.contains("news", ignoreCase = true) }
             
             if (newsletterCat != null) {
+                Log.d("WidgetUpdateWorker", "Found newsletter category: ${newsletterCat.name} (ID: ${newsletterCat.id})")
                 val posts = api.getPosts(categories = newsletterCat.id, perPage = 1)
                 if (posts.isNotEmpty()) {
                     val post = posts[0]
@@ -51,6 +52,7 @@ class WidgetUpdateWorker(
                     }
 
                     val glanceIds = manager.getGlanceIds(NewsletterWidget::class.java)
+                    Log.d("WidgetUpdateWorker", "Updating ${glanceIds.size} Newsletter widgets")
                     glanceIds.forEach { glanceId ->
                         updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
                             prefs.toMutablePreferences().apply {
@@ -61,16 +63,21 @@ class WidgetUpdateWorker(
                         }
                     }
                     NewsletterWidget().updateAll(context)
+                } else {
+                    Log.w("WidgetUpdateWorker", "No posts found in newsletter category")
                 }
+            } else {
+                Log.w("WidgetUpdateWorker", "Newsletter category not found")
             }
 
             // Update Blog Posts Widget
             val blogCat = categories.find { 
                 it.slug.equals("blog", ignoreCase = true) || 
                 it.name.contains("Blog", ignoreCase = true) 
-            }
+            } ?: categories.find { it.slug.contains("post", ignoreCase = true) }
             
             if (blogCat != null) {
+                Log.d("WidgetUpdateWorker", "Found blog category: ${blogCat.name} (ID: ${blogCat.id})")
                 val posts = api.getPosts(categories = blogCat.id, perPage = 10)
                 if (posts.isNotEmpty()) {
                     val gson = Gson()
@@ -93,6 +100,7 @@ class WidgetUpdateWorker(
                     }
                     val postsJson = gson.toJson(postsData)
                     val glanceIds = manager.getGlanceIds(BlogPostsWidget::class.java)
+                    Log.d("WidgetUpdateWorker", "Updating ${glanceIds.size} Blog widgets")
                     glanceIds.forEach { glanceId ->
                         updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
                             prefs.toMutablePreferences().apply {
@@ -103,7 +111,11 @@ class WidgetUpdateWorker(
                         }
                     }
                     BlogPostsWidget().updateAll(context)
+                } else {
+                    Log.w("WidgetUpdateWorker", "No posts found in blog category")
                 }
+            } else {
+                Log.w("WidgetUpdateWorker", "Blog category not found")
             }
 
             Result.success()

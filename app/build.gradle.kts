@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26061701
-        versionName = "phcaapp-stable-26.06.17.1"
+        versionCode = 26061703
+        versionName = "phcaapp-stable-26.06.17.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -43,6 +43,9 @@ android {
                 "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debug")
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
         debug {
         }

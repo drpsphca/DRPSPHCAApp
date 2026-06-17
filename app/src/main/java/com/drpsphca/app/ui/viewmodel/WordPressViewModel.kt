@@ -419,19 +419,36 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
 
     private suspend fun processContentImages(content: String, postId: Int): String {
         var updatedContent = content
-        val imgRegex = """<img[^>]+src=["']([^"']+)["'][^>]*>""".toRegex()
-        val matches = imgRegex.findAll(content)
+        val imgTagRegex = """<img[^>]+>""".toRegex()
+        val srcRegex = """src=["']([^"']+)["']""".toRegex()
+        val srcsetRegex = """srcset=["']([^"']+)["']""".toRegex()
+
+        val matches = imgTagRegex.findAll(content).toList()
         
-        matches.forEachIndexed { index, matchResult ->
-            val url = matchResult.groups[1]?.value
-            if (url != null && url.startsWith("http")) {
-                val extension = url.substringAfterLast(".", "jpg").substringBefore("?")
-                val fileName = "post_${postId}_content_${index}.$extension"
-                val localPath = downloadAndSaveImage(url, fileName)
+        // Process from end to beginning to avoid index issues if we were changing length 
+        // (though we are doing string replacement here)
+        for (i in matches.indices) {
+            val imgMatch = matches[i]
+            val fullTag = imgMatch.value
+            var updatedTag = fullTag
+            
+            val srcMatch = srcRegex.find(fullTag)
+            val srcUrl = srcMatch?.groups?.get(1)?.value
+            
+            if (srcUrl != null && srcUrl.startsWith("http")) {
+                val extension = srcUrl.substringAfterLast(".", "jpg").substringBefore("?")
+                val fileName = "post_${postId}_content_${i}.$extension"
+                val localPath = downloadAndSaveImage(srcUrl, fileName)
                 if (localPath != null) {
-                    updatedContent = updatedContent.replace(url, "file://$localPath")
+                    updatedTag = updatedTag.replace(srcUrl, "file://$localPath")
                 }
             }
+            
+            // Remove srcset to force the browser to use the localized src
+            updatedTag = updatedTag.replace(srcsetRegex, "")
+            
+            // Replace only this specific occurrence
+            updatedContent = updatedContent.replaceFirst(fullTag, updatedTag)
         }
         return updatedContent
     }
