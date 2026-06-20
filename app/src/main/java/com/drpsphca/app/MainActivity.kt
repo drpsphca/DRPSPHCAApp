@@ -97,7 +97,6 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
-
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.unit.DpOffset
@@ -109,8 +108,6 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -127,7 +124,6 @@ import androidx.compose.ui.text.withStyle
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
-
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
@@ -683,7 +679,15 @@ fun PostDetailRoute(
                         WordPressViewModel.DarkModeConfig.OFF -> false
                         WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
                     }
-                    PostDetailScreen(post = state.post, isDarkMode = isDarkMode, isOffline = isOffline)
+                    PostDetailScreen(
+                        post = state.post, 
+                        isDarkMode = isDarkMode, 
+                        isOffline = isOffline,
+                        onTagClick = { tagName ->
+                            val encodedTag = Uri.encode(tagName)
+                            navController.navigate("tag/$encodedTag")
+                        }
+                    )
                 }
 
                 is PostUiState.Error -> {

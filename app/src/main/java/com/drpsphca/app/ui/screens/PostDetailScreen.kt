@@ -1,10 +1,13 @@
 package com.drpsphca.app.ui.screens
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -17,7 +20,12 @@ import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Boolean = false) {
+fun PostDetailScreen(
+    post: PostDetailUiModel, 
+    isDarkMode: Boolean, 
+    isOffline: Boolean = false,
+    onTagClick: (String) -> Unit = {}
+) {
     val isDarkTheme = isDarkMode
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
@@ -101,12 +109,74 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                     word-wrap: break-word;
                     -webkit-text-size-adjust: 100%;
                 }
+                
+                .header-container {
+                    margin-bottom: 24px;
+                }
+                
+                .featured-image-container {
+                    position: relative;
+                    width: 100%;
+                    margin-bottom: 16px;
+                }
+                
+                .featured-image {
+                    width: 100% !important;
+                    height: auto;
+                    border-radius: 8px;
+                    margin: 0 !important;
+                    display: block;
+                }
+                
+                .category-badge {
+                    position: absolute;
+                    top: 12px;
+                    left: 12px;
+                    background-color: #F1F1F1;
+                    color: #025CA1;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    font-family: 'Gilroy', sans-serif;
+                    font-weight: bold;
+                    font-size: 0.8rem;
+                    text-transform: uppercase;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                
+                .tags-container {
+                    margin-bottom: 8px;
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+                
+                .tag {
+                    background-color: #111111;
+                    color: #FFFFFF;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-family: 'Gilroy', sans-serif;
+                    font-weight: bold;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                    display: inline-block;
+                }
+                
+                .publish-date {
+                    font-family: 'Gilroy', sans-serif;
+                    font-weight: 500;
+                    font-size: 0.75rem;
+                    color: ${if (isDarkTheme) "#AAAAAA" else "#666666"};
+                    margin-top: 8px;
+                    text-transform: uppercase;
+                }
+                
                 h1 {
                     font-family: 'Gilroy', sans-serif;
                     font-weight: bold;
                     font-size: 1.5rem;
                     line-height: 1.2;
-                    margin-bottom: 1rem;
+                    margin-bottom: 12px;
                     margin-top: 0;
                 }
                 /* Images scaling */
@@ -195,7 +265,22 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
             </style>
         </head>
         <body>
-            <h1>${post.plainTitle}</h1>
+            <div class="header-container">
+                ${if (post.imageUrl != null || post.localImageUrl != null) """
+                <div class="featured-image-container">
+                    <img src="${if (post.localImageUrl != null) "file://" + post.localImageUrl else post.imageUrl}" class="featured-image">
+                    ${if (post.category != null) """<div class="category-badge">${post.category}</div>""" else ""}
+                </div>
+                """ else ""}
+                <h1>${post.plainTitle}</h1>
+                ${if (post.tags.isNotEmpty()) """
+                <div class="tags-container">
+                    ${post.tags.joinToString("") { """<span class="tag" onclick="window.location.href='app://tag/$it'">$it</span>""" }}
+                </div>
+                """ else ""}
+                <div class="publish-date">PUBLISHED ${post.formattedDate.uppercase()}</div>
+            </div>
+
             <div id="content-container">
                 ${post.content}
             </div>
@@ -329,6 +414,18 @@ fun PostDetailScreen(post: PostDetailUiModel, isDarkMode: Boolean, isOffline: Bo
                         mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     }
                     
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                            val url = request?.url?.toString()
+                            if (url?.startsWith("app://tag/") == true) {
+                                val tagName = Uri.decode(url.substringAfter("app://tag/"))
+                                onTagClick(tagName)
+                                return true
+                            }
+                            return false
+                        }
+                    }
+
                     webChromeClient = object : WebChromeClient() {
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                             customView = view

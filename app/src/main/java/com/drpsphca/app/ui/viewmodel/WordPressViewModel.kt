@@ -65,7 +65,8 @@ data class PostItemUiModel(
     val plainExcerpt: String,
     val imageUrl: String?,
     val tags: List<String>,
-    val localImageUrl: String? = null
+    val localImageUrl: String? = null,
+    val category: String? = null
 )
 
 @Immutable
@@ -78,7 +79,8 @@ data class PostDetailUiModel(
     val imageUrl: String?,
     val tags: List<String>,
     val link: String,
-    val localImageUrl: String? = null
+    val localImageUrl: String? = null,
+    val category: String? = null
 ) {
     fun toItemUiModel(): PostItemUiModel {
         return PostItemUiModel(
@@ -88,7 +90,8 @@ data class PostDetailUiModel(
             plainExcerpt = plainExcerpt,
             imageUrl = imageUrl,
             tags = tags,
-            localImageUrl = localImageUrl
+            localImageUrl = localImageUrl,
+            category = category
         )
     }
 }
@@ -577,6 +580,9 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         val tags = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }?.map {
             Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
         } ?: emptyList()
+        val category = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "category" } }?.firstOrNull()?.let {
+            Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
+        }
 
         return PostItemUiModel(
             id = id,
@@ -585,7 +591,8 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
             plainExcerpt = plainExcerpt,
             imageUrl = imageUrl,
             tags = tags,
-            localImageUrl = null
+            localImageUrl = null,
+            category = category
         )
     }
 
@@ -599,6 +606,9 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         val tags = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "post_tag" } }?.map {
             Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
         } ?: emptyList()
+        val category = embedded?.terms?.firstOrNull { it.any { term -> term.taxonomy == "category" } }?.firstOrNull()?.let {
+            Html.fromHtml(it.name, Html.FROM_HTML_MODE_COMPACT).toString()
+        }
         val contentAsString = content.rendered
 
         return PostDetailUiModel(
@@ -610,7 +620,8 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
             imageUrl = imageUrl,
             tags = tags,
             link = link,
-            localImageUrl = null
+            localImageUrl = null,
+            category = category
         )
     }
 }
