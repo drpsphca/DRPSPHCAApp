@@ -71,6 +71,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -532,17 +533,17 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 WebViewScreen(url = url)
             }
             composable("search") {
-                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
+                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
             composable("bookmarks") {
-                BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
+                BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
             composable("downloads") {
-                DownloadsScreen(navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
+                DownloadsScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
             composable("tag/{tagName}") { backStackEntry ->
                 val tagName = backStackEntry.arguments?.getString("tagName") ?: ""
-                TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel, isDarkMode = isDarkMode)
+                TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
             }
         }
     }
@@ -678,13 +679,6 @@ fun PostDetailRoute(
 
                 is PostUiState.PostSuccess -> {
                     val isOffline = !isOnline(context)
-                    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
-                    val isSystemDark = isSystemInDarkTheme()
-                    val isDarkMode = when (darkModeConfig) {
-                        WordPressViewModel.DarkModeConfig.ON -> true
-                        WordPressViewModel.DarkModeConfig.OFF -> false
-                        WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
-                    }
                     PostDetailScreen(
                         post = state.post, 
                         isDarkMode = isDarkMode, 
@@ -780,17 +774,17 @@ fun HomeScreen(
             },
             modifier = Modifier.fillMaxSize()
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 300.dp),
+                modifier = Modifier.fillMaxSize()
             ) {
                 // Banner Ad
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                 }
 
                 // Newsletter Section
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         text = "Latest Newsletter",
                         style = MaterialTheme.typography.headlineMedium.copy(
@@ -798,10 +792,11 @@ fun HomeScreen(
                             fontFamily = Gilroy,
                             color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF3C8E3E)
                         ),
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                      when (val state = newsletterUiState) {
                         is NewsletterUiState.Loading -> {
                             Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
@@ -824,8 +819,7 @@ fun HomeScreen(
                 }
 
                 // Blog Posts Section
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         text = "Latest Blog Posts",
                         style = MaterialTheme.typography.headlineMedium.copy(
@@ -833,12 +827,13 @@ fun HomeScreen(
                             fontFamily = Gilroy,
                             color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF3C8E3E)
                         ),
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
                 when (val state = uiState) {
                     is PostUiState.Loading -> {
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator()
                             }
@@ -847,22 +842,17 @@ fun HomeScreen(
                     is PostUiState.Success -> {
                         val displayedPosts = state.posts.take(10)
                         if (displayedPosts.isEmpty()) {
-                            item { Text("No blog posts available.", modifier = Modifier.padding(16.dp)) }
+                            item(span = { GridItemSpan(maxLineSpan) }) { 
+                                Text("No blog posts available.", modifier = Modifier.padding(16.dp)) 
+                            }
                         } else {
-                            if (isCompact) {
-                                items(displayedPosts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
-                                }
-                            } else {
-                                // Replaced LazyVerticalGrid with custom PostGrid composable for non-compact layout
-                                item {
-                                    PostGrid(posts = displayedPosts, navController = navController, columns = 2, isDarkMode = isDarkMode)
-                                }
+                            items(displayedPosts, key = { it.id }) { post ->
+                                PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
                             }
                         }
                     }
                     is PostUiState.Error -> {
-                         item {
+                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().height(200.dp),
                                 verticalArrangement = Arrangement.Center,
@@ -879,8 +869,7 @@ fun HomeScreen(
                 }
 
                 // Footer Section
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1004,7 +993,6 @@ fun BlogScreen(
                         if (isCompact) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 item {
@@ -1034,9 +1022,7 @@ fun BlogScreen(
                          else {
                             LazyVerticalGrid(
                                 columns = GridCells.Adaptive(minSize = 300.dp),
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.fillMaxSize()
                             ) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
@@ -1142,7 +1128,6 @@ fun NewsletterScreen(
                         if (isCompact) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 items(state.newsletters, key = { it.id }) { newsletter ->
@@ -1152,9 +1137,7 @@ fun NewsletterScreen(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(1),
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.fillMaxSize()
                             ) {
                                 items(state.newsletters, key = { it.id }) { newsletter ->
                                     NewsletterItem(post = newsletter, navController = navController, windowSize = windowSize, isDarkMode = isDarkMode)
@@ -1286,7 +1269,6 @@ fun PostItem(
     Card(
         modifier = Modifier
             .padding(8.dp)
-            .widthIn(max = 500.dp)
             .clickable { navController.navigate("postdetail/${post.id}") },
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
@@ -1385,7 +1367,7 @@ fun getHighlightedText(text: String, query: String): AnnotatedString {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
+fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     var query by remember { mutableStateOf("") }
     var appliedQuery by remember { mutableStateOf("") }
     val uiState by wordPressViewModel.uiState.collectAsState()
@@ -1444,15 +1426,33 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
         when (val state = uiState) {
             is PostUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             is PostUiState.Success -> {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(state.posts) { post ->
-                        PostItem(
-                            post = post, 
-                            navController = navController, 
-                            highlightQuery = appliedQuery,
-                            showTags = false,
-                            isDarkMode = isDarkMode
-                        )
+                if (windowSize == WindowSize.COMPACT) {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        items(state.posts) { post ->
+                            PostItem(
+                                post = post, 
+                                navController = navController, 
+                                highlightQuery = appliedQuery,
+                                showTags = false,
+                                isDarkMode = isDarkMode
+                            )
+                        }
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 300.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(8.dp)
+                    ) {
+                        items(state.posts) { post ->
+                            PostItem(
+                                post = post, 
+                                navController = navController, 
+                                highlightQuery = appliedQuery,
+                                showTags = false,
+                                isDarkMode = isDarkMode
+                            )
+                        }
                     }
                 }
             }
@@ -1464,7 +1464,7 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
+fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     val posts by wordPressViewModel.bookmarkedPosts.collectAsState()
     Scaffold(
         topBar = {
@@ -1498,9 +1498,21 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
                 Text("No bookmarks yet.")
             }
         } else {
-            LazyColumn(modifier = Modifier.padding(padding)) {
-                items(posts) { post ->
-                    PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+            if (windowSize == WindowSize.COMPACT) {
+                LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
+                    items(posts) { post ->
+                        PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 300.dp),
+                    modifier = Modifier.padding(padding).fillMaxSize(),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
+                    items(posts) { post ->
+                        PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                    }
                 }
             }
         }
@@ -1509,7 +1521,7 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
+fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     val posts by wordPressViewModel.downloadedPosts.collectAsState()
     Scaffold(
         topBar = {
@@ -1543,9 +1555,21 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
                 Text("No downloads yet.")
             }
         } else {
-            LazyColumn(modifier = Modifier.padding(padding)) {
-                items(posts) { post ->
-                    PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+            if (windowSize == WindowSize.COMPACT) {
+                LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
+                    items(posts) { post ->
+                        PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 300.dp),
+                    modifier = Modifier.padding(padding).fillMaxSize(),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
+                    items(posts) { post ->
+                        PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                    }
                 }
             }
         }
@@ -1554,7 +1578,7 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TagScreen(tagName: String, navController: NavController, wordPressViewModel: WordPressViewModel, isDarkMode: Boolean) {
+fun TagScreen(tagName: String, navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     LaunchedEffect(tagName) {
         wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, tag = tagName)
@@ -1590,41 +1614,26 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
             when (val state = uiState) {
                 is PostUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 is PostUiState.Success -> {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(state.posts) { post ->
-                            PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                    if (windowSize == WindowSize.COMPACT) {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(state.posts) { post ->
+                                PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                            }
+                        }
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 300.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(8.dp)
+                        ) {
+                            items(state.posts) { post ->
+                                PostItem(post = post, navController = navController, showTags = false, isDarkMode = isDarkMode)
+                            }
                         }
                     }
                 }
                 is PostUiState.Error -> Text(state.message, modifier = Modifier.padding(16.dp))
                 else -> {}
-            }
-        }
-    }
-}
-
-@Composable
-fun PostGrid(posts: List<PostItemUiModel>, navController: NavController, columns: Int, isDarkMode: Boolean) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        posts.chunked(columns).forEach { rowPosts ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowPosts.forEach { post ->
-                    Box(modifier = Modifier.weight(1f)) {
-                        PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
-                    }
-                }
-                if (rowPosts.size < columns) {
-                    repeat(columns - rowPosts.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
             }
         }
     }
