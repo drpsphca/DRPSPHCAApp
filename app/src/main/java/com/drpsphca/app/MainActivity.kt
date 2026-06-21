@@ -218,11 +218,17 @@ fun MorePopupMenu(
     onDarkModeToggle: () -> Unit,
     onNotificationsToggle: () -> Unit
 ) {
+    val isDarkMode = when (darkModeConfig) {
+        WordPressViewModel.DarkModeConfig.ON -> true
+        WordPressViewModel.DarkModeConfig.OFF -> false
+        WordPressViewModel.DarkModeConfig.AUTO -> isSystemInDarkTheme()
+    }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         offset = DpOffset(x = 0.dp, y = 0.dp),
-        modifier = Modifier.padding(8.dp)
+        modifier = Modifier.padding(8.dp),
+        containerColor = if (isDarkMode) MaterialTheme.colorScheme.surface else Color.White
     ) {
         DropdownMenuItem(
             text = { 
@@ -912,7 +918,8 @@ fun HomeScreen(
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = Gilroy
-                                    )
+                                    ),
+                                    color = if (isDarkMode) MaterialTheme.colorScheme.primary else Color(0xFF353535)
                                 )
                             }
                             Spacer(modifier = Modifier.width(16.dp))
@@ -925,7 +932,8 @@ fun HomeScreen(
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = Gilroy
-                                    )
+                                    ),
+                                    color = if (isDarkMode) MaterialTheme.colorScheme.primary else Color(0xFF353535)
                                 )
                             }
                         }
@@ -1117,7 +1125,10 @@ fun NewsletterScreen(
 
             Text(
                 text = "Latest Newsletters",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Gilroy
+                ),
                 modifier = Modifier.padding(16.dp)
             )
             when (val state = newsletterUiState) {
