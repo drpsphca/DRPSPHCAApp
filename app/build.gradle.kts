@@ -30,7 +30,7 @@ android {
         }
         register("googlePlay") {
             dimension = "distribution"
-            buildConfigField("String", "ADS_UNIT_ID", "\"ca-app-pub-5724714825846987/1069364341\"")
+            buildConfigField("String", "ADS_UNIT_ID", "\"ca-app-pub-5724714825846987/5308478635\"")
         }
     }
 

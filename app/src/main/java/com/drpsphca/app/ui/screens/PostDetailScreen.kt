@@ -416,13 +416,22 @@ fun PostDetailScreen(
                     
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                            val url = request?.url?.toString()
-                            if (url?.startsWith("app://tag/") == true) {
+                            val url = request?.url?.toString() ?: return false
+                            
+                            if (url.startsWith("app://tag/")) {
                                 val tagName = Uri.decode(url.substringAfter("app://tag/"))
                                 onTagClick(tagName)
                                 return true
                             }
-                            return false
+                            
+                            // Open other links in browser or supported app
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
+                                return true
+                            } catch (e: Exception) {
+                                return false
+                            }
                         }
                     }
 

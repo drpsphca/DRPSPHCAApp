@@ -1247,11 +1247,30 @@ fun WebViewScreen(url: String) {
             // WARNING: Using setJavaScriptEnabled(true) can introduce XSS vulnerabilities.
             // Review carefully if JavaScript is strictly required for this WebView.
             // settings.javaScriptEnabled = true // Removed to fix warning
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                    val newUrl = request?.url?.toString() ?: return false
+                    // If it's a different URL than the one we initially loaded, open in browser
+                    if (newUrl != url) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(newUrl))
+                            context.startActivity(intent)
+                            return true
+                        } catch (e: Exception) {
+                            // Fallback to internal loading if no app can handle it
+                            return false
+                        }
+                    }
+                    return false
+                }
+            }
             loadUrl(url)
         }
     }, update = { webView ->
-        webView.loadUrl(url)
+        // Only load if the URL is different to avoid refreshing when the view updates
+        if (webView.url != url) {
+            webView.loadUrl(url)
+        }
     })
 }
 
