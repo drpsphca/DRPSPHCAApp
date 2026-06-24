@@ -211,7 +211,7 @@ fun PostDetailScreen(
                     position: relative;
                     width: 100%;
                     margin: 16px 0;
-                    background: #000;
+                    background: transparent;
                     border-radius: 8px;
                     overflow: hidden;
                     clear: both;
@@ -293,17 +293,20 @@ fun PostDetailScreen(
                             var src = iframe.src || "";
                             
                             // Check if it's a video/embed we want to handle
-                            var isEmbed = src.includes('youtube') || 
-                                          src.includes('facebook') || 
+                            var isVideo = src.includes('youtube') || 
                                           src.includes('vimeo') || 
                                           src.includes('reels') || 
                                           src.includes('shorts') || 
-                                          src.includes('tiktok') ||
-                                          src.includes('instagram') ||
-                                          src.includes('twitter') ||
-                                          src.includes('threads');
+                                          src.includes('tiktok');
                                           
-                            if (!isEmbed) return;
+                            var isSocial = src.includes('facebook') || 
+                                           src.includes('instagram') || 
+                                           src.includes('twitter') ||
+                                           src.includes('threads') ||
+                                           src.includes('syndication.twitter.com') ||
+                                           src.includes('platform.twitter.com');
+                                          
+                            if (!isVideo && !isSocial) return;
                             
                             if (${isOffline}) {
                                 var msg = document.createElement('div');
@@ -316,18 +319,24 @@ fun PostDetailScreen(
                             // Check if already wrapped
                             var parent = iframe.parentElement;
                             if (parent.classList.contains('video-wrapper')) {
-                                // Update aspect ratio if needed
-                                updateRatio(parent, iframe, src);
+                                // Update aspect ratio only for videos
+                                if (isVideo) updateRatio(parent, iframe, src);
                                 return;
                             }
                             
-                            var wrapper = document.createElement('div');
-                            wrapper.className = 'video-wrapper';
-                            
-                            updateRatio(wrapper, iframe, src);
-                            
-                            iframe.parentNode.insertBefore(wrapper, iframe);
-                            wrapper.appendChild(iframe);
+                            // For videos, we use the aspect ratio wrapper
+                            // For social posts, we just ensure they are responsive but don't force ratio
+                            if (isVideo) {
+                                var wrapper = document.createElement('div');
+                                wrapper.className = 'video-wrapper';
+                                updateRatio(wrapper, iframe, src);
+                                iframe.parentNode.insertBefore(wrapper, iframe);
+                                wrapper.appendChild(iframe);
+                            } else {
+                                // For social, just ensure it doesn't overflow
+                                iframe.style.maxWidth = '100%';
+                                iframe.style.width = '100%';
+                            }
                         });
                     }
                     
@@ -394,7 +403,7 @@ fun PostDetailScreen(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     
-                    setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     
                     settings.apply {
                         javaScriptEnabled = true
