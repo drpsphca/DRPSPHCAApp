@@ -1250,10 +1250,15 @@ fun WebViewScreen(url: String) {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
                     val newUrl = request?.url?.toString() ?: return false
-                    // If it's a different URL than the one we initially loaded, open in browser
+                    val uri = Uri.parse(newUrl)
+                    if (uri.host == "drpsphca.com" || uri.host == "legal.drpsphca.com") {
+                        // Keep drpsphca.com and legal.drpsphca.com links inside the WebView
+                        return false
+                    }
+                    // If it's a different URL than the one we initially loaded and not our domain, open in browser
                     if (newUrl != url) {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(newUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
                             context.startActivity(intent)
                             return true
                         } catch (e: Exception) {
