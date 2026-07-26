@@ -104,14 +104,25 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
     val uiState: StateFlow<PostUiState> = _uiState.asStateFlow()
 
+    private val _tvalUiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
+    val tvalUiState: StateFlow<PostUiState> = _tvalUiState.asStateFlow()
+
     private val _newsletterUiState = MutableStateFlow<NewsletterUiState>(NewsletterUiState.Loading)
     val newsletterUiState: StateFlow<NewsletterUiState> = _newsletterUiState.asStateFlow()
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _tvalIsRefreshing = MutableStateFlow(false)
+    val tvalIsRefreshing: StateFlow<Boolean> = _tvalIsRefreshing.asStateFlow()
+
     private val _blogPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
+    private val _tvalPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
     private val _currentPage = MutableStateFlow(1)
+    private val _tvalCurrentPage = MutableStateFlow(1)
+
+    private val _selectedTvalDate = MutableStateFlow<String?>(null)
+    val selectedTvalDate: StateFlow<String?> = _selectedTvalDate.asStateFlow()
 
     private val _categories = MutableStateFlow<List<Category>>(emptyList())
     
@@ -146,6 +157,7 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     val navigateToPostId: StateFlow<String?> = _navigateToPostId.asStateFlow()
 
     private val wordPressApi = WordPressClient.api
+    private val tvalApi = WordPressClient.tvalApi
     private val mutex = Mutex()
 
     init {
@@ -212,6 +224,95 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             mutex.withLock {
                 doFetchPosts(isRefreshing, page, perPage, forHome, searchQuery, tag)
+            }
+        }
+    }
+
+    fun fetchTVALPosts(isRefreshing: Boolean, page: Int = _tvalCurrentPage.value, perPage: Int = 20, searchQuery: String? = null, date: String? = null) {
+        viewModelScope.launch {
+            mutex.withLock {
+                doFetchTVALPosts(isRefreshing, page, perPage, searchQuery, date)
+            }
+        }
+    }
+
+    private suspend fun doFetchTVALPosts(isRefreshing: Boolean, page: Int, perPage: Int, searchQuery: String?, date: String?) {
+        if (isRefreshing) {
+            _tvalIsRefreshing.value = true
+            _tvalCurrentPage.value = 1
+        } else if (page == 1) {
+            _tvalUiState.update { PostUiState.Loading }
+        }
+
+        try {
+            var after: String? = null
+            var before: String? = null
+            
+            if (date != null) {
+                // date is in "yyyy-MM-dd"
+                after = "${date}T00:00:00"
+                before = "${date}T23:59:59"
+            }
+
+            val posts = tvalApi.getPosts(
+                page = page,
+                perPage = perPage,
+                search = searchQuery,
+                after = after,
+                before = before
+            )
+
+            var uiModels = posts.map { it.toUiModel() }
+            
+            if (searchQuery != null) {
+                uiModels = uiModels.filter { it.plainTitle.contains(searchQuery, ignoreCase = true) }
+            }
+
+            val currentPosts = if (page == 1) emptyList() else _tvalPosts.value
+            val newPosts = currentPosts + uiModels
+            _tvalPosts.value = newPosts
+            _tvalCurrentPage.value = page
+
+            val hasMore = posts.size == perPage
+            _tvalUiState.update { PostUiState.Success(newPosts, hasMore) }
+        } catch (e: Exception) {
+            Log.e("WordPressViewModel", "Error fetching TVAL posts", e)
+            _tvalUiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+        } finally {
+            if (isRefreshing) {
+                _tvalIsRefreshing.value = false
+            }
+        }
+    }
+
+    fun selectTvalDate(date: String?) {
+        _selectedTvalDate.value = date
+        fetchTVALPosts(isRefreshing = true, page = 1, date = date)
+    }
+
+    fun getTvalDateRange(): List<Pair<String, String>> {
+        val dates = mutableListOf<Pair<String, String>>()
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val displaySdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val cal = java.util.Calendar.getInstance()
+        
+        for (i in 0 until 35) {
+            val dateStr = sdf.format(cal.time)
+            val displayStr = displaySdf.format(cal.time)
+            dates.add(dateStr to displayStr)
+            cal.add(java.util.Calendar.DATE, -1)
+        }
+        return dates
+    }
+
+    fun fetchTvalNextPage() {
+        viewModelScope.launch {
+            mutex.withLock {
+                val uiStateValue = _tvalUiState.value
+                if (uiStateValue is PostUiState.Success && uiStateValue.hasMore) {
+                    val nextPage = _tvalCurrentPage.value + 1
+                    doFetchTVALPosts(isRefreshing = false, page = nextPage, perPage = 20, searchQuery = null, date = _selectedTvalDate.value)
+                }
             }
         }
     }
@@ -548,19 +649,21 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun fetchPost(id: Int) {
+    fun fetchPost(id: Int, isTval: Boolean = false) {
         viewModelScope.launch {
             mutex.withLock {
                 _uiState.update { PostUiState.Loading }
                 try {
-                    // Check if already downloaded
-                    val downloadedPost = _downloadedPosts.value.find { it.id == id }
-                    if (downloadedPost != null) {
-                        _uiState.update { PostUiState.PostSuccess(downloadedPost) }
-                        return@withLock
+                    // Check if already downloaded (Downloads are only for main blog for now)
+                    if (!isTval) {
+                        val downloadedPost = _downloadedPosts.value.find { it.id == id }
+                        if (downloadedPost != null) {
+                            _uiState.update { PostUiState.PostSuccess(downloadedPost) }
+                            return@withLock
+                        }
                     }
 
-                    val post = wordPressApi.getPost(id)
+                    val post = if (isTval) tvalApi.getPost(id) else wordPressApi.getPost(id)
                     _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel()) }
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching post", e)

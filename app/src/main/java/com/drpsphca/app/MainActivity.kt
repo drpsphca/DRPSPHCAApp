@@ -332,6 +332,7 @@ fun MorePopupMenu(
 fun TopBarWithActions(
     title: @Composable () -> Unit,
     showSearch: Boolean = false,
+    showTvalLogo: Boolean = false,
     darkModeConfig: WordPressViewModel.DarkModeConfig = WordPressViewModel.DarkModeConfig.AUTO,
     notificationsEnabled: Boolean = false,
     onDarkModeToggle: () -> Unit = {},
@@ -345,7 +346,17 @@ fun TopBarWithActions(
     val isOnline = remember(showMoreMenu) { isOnline(context) }
 
     CenterAlignedTopAppBar(
-        title = title,
+        title = {
+            if (showTvalLogo) {
+                Image(
+                    painter = painterResource(id = R.drawable.tvallogo),
+                    contentDescription = "TVAL Logo",
+                    modifier = Modifier.height(40.dp)
+                )
+            } else {
+                title()
+            }
+        },
         navigationIcon = {
             if (showSearch) {
                 IconButton(onClick = onSearchClick) {
@@ -420,7 +431,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route)
+    val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route, Screen.TVAdListings.route)
     val windowSize = rememberWindowSizeClass()
 
     Scaffold(
@@ -516,24 +527,61 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     }
                 )
             }
+            composable("tval") {
+                TVAdListingsScreen(
+                    navController = navController,
+                    wordPressViewModel = wordPressViewModel,
+                    windowSize = windowSize,
+                    isDarkMode = isDarkMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsToggle = {
+                        val activity = context as? MainActivity
+                        if (!notificationsEnabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                activity?.requestNotificationPermission()
+                            } else {
+                                wordPressViewModel.setNotificationsEnabled(true)
+                                // Auto-subscribe on older devices (no permission prompt needed)
+                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
+                            }
+                        } else {
+                            wordPressViewModel.setNotificationsEnabled(false)
+                            // Auto-unsubscribe when toggling OFF
+                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
+                        }
+                    }
+                )
+            }
             composable(
-                "postdetail/{postId}",
-                arguments = listOf(navArgument("postId") { type = NavType.IntType })
+                "postdetail/{postId}?isTval={isTval}",
+                arguments = listOf(
+                    navArgument("postId") { type = NavType.IntType },
+                    navArgument("isTval") { type = NavType.BoolType; defaultValue = false }
+                )
             ) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getInt("postId")
+                val isTval = backStackEntry.arguments?.getBoolean("isTval") ?: false
                 PostDetailRoute(
                     wordPressViewModel = wordPressViewModel,
                     navController = navController,
                     postId = postId,
-                    isDarkMode = isDarkMode
+                    isDarkMode = isDarkMode,
+                    isTVAL = isTval
                 )
             }
             composable("webview/{url}") { backStackEntry ->
                 val url = backStackEntry.arguments?.getString("url") ?: "about:blank"
                 WebViewScreen(url = url)
             }
-            composable("search") {
-                SearchScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
+            composable("search?mode={mode}") { backStackEntry ->
+                val mode = backStackEntry.arguments?.getString("mode") ?: "blog"
+                SearchScreen(
+                    navController = navController, 
+                    wordPressViewModel = wordPressViewModel, 
+                    windowSize = windowSize, 
+                    isDarkMode = isDarkMode,
+                    searchMode = mode
+                )
             }
             composable("bookmarks") {
                 BookmarksScreen(navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
@@ -555,12 +603,13 @@ fun PostDetailRoute(
     wordPressViewModel: WordPressViewModel,
     navController: NavController,
     postId: Int?,
-    isDarkMode: Boolean
+    isDarkMode: Boolean,
+    isTVAL: Boolean = false
 ) {
     val context = LocalContext.current
     LaunchedEffect(postId) {
         if (postId != null) {
-            wordPressViewModel.fetchPost(postId)
+            wordPressViewModel.fetchPost(postId, isTVAL)
         }
     }
     val uiState by wordPressViewModel.uiState.collectAsState()
@@ -569,7 +618,7 @@ fun PostDetailRoute(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Post",
+                        text = if (isTVAL) "TV Ad Listing" else "Post",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontFamily = Gilroy,
                             fontWeight = FontWeight.Bold
@@ -582,7 +631,7 @@ fun PostDetailRoute(
                     }
                 },
                 actions = {
-                    if (uiState is PostUiState.PostSuccess) {
+                    if (!isTVAL && uiState is PostUiState.PostSuccess) {
                         val post = (uiState as PostUiState.PostSuccess).post
                         val bookmarkedPosts by wordPressViewModel.bookmarkedPosts.collectAsState()
                         val isBookmarked = bookmarkedPosts.any { it.id == post.id }
@@ -878,7 +927,7 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.Bottom
                     ) {
                         Text(
-                            text = "Version ${BuildConfig.VERSION_NAME}",
+                            text = "Version ${com.drpsphca.app.BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = Gilroy
@@ -1287,13 +1336,20 @@ fun PostItem(
     navController: NavController, 
     highlightQuery: String? = null,
     showTags: Boolean = true,
-    isDarkMode: Boolean = false
+    isDarkMode: Boolean = false,
+    onPostClick: (() -> Unit)? = null
 ) {
     val imageSource = post.localImageUrl ?: post.imageUrl
     Card(
         modifier = Modifier
             .padding(8.dp)
-            .clickable { navController.navigate("postdetail/${post.id}") },
+            .clickable { 
+                if (onPostClick != null) {
+                    onPostClick()
+                } else {
+                    navController.navigate("postdetail/${post.id}") 
+                }
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
         )
@@ -1391,10 +1447,197 @@ fun getHighlightedText(text: String, query: String): AnnotatedString {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(navController: NavController, wordPressViewModel: WordPressViewModel, windowSize: WindowSize, isDarkMode: Boolean) {
+fun TVAdListingsScreen(
+    navController: NavController,
+    wordPressViewModel: WordPressViewModel,
+    windowSize: WindowSize,
+    isDarkMode: Boolean,
+    notificationsEnabled: Boolean,
+    onNotificationsToggle: () -> Unit
+) {
+    val tvalUiState by wordPressViewModel.tvalUiState.collectAsState()
+    val isRefreshing by wordPressViewModel.tvalIsRefreshing.collectAsState()
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+    val selectedDate by wordPressViewModel.selectedTvalDate.collectAsState()
+    val isCompact = windowSize == WindowSize.COMPACT
+
+    LaunchedEffect(Unit) {
+        if (tvalUiState !is PostUiState.Success) {
+            wordPressViewModel.fetchTVALPosts(isRefreshing = false, page = 1)
+        }
+    }
+
+    Column {
+        TopBarWithActions(
+            title = { Text("TV Ad Listings") }, // Will be overridden by logo due to showTvalLogo = true
+            showTvalLogo = true,
+            showSearch = true,
+            darkModeConfig = darkModeConfig,
+            notificationsEnabled = notificationsEnabled,
+            onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onNotificationsToggle = onNotificationsToggle,
+            onSearchClick = { navController.navigate("search?mode=tval") },
+            onBookmarksClick = { navController.navigate("bookmarks") },
+            onDownloadsClick = { navController.navigate("downloads") }
+        )
+
+        DateSelector(
+            dates = wordPressViewModel.getTvalDateRange(),
+            selectedDate = selectedDate,
+            onDateSelected = { wordPressViewModel.selectTvalDate(it) },
+            isDarkMode = isDarkMode
+        )
+
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                wordPressViewModel.fetchTVALPosts(true, page = 1, date = selectedDate)
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            when (val state = tvalUiState) {
+                is PostUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is PostUiState.Success -> {
+                    if (state.posts.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No TV Ad Listings available for this selection.", modifier = Modifier.padding(16.dp))
+                        }
+                    } else {
+                        if (isCompact) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                items(state.posts, key = { it.id }) { post ->
+                                    PostItem(
+                                        post = post, 
+                                        navController = navController, 
+                                        isDarkMode = isDarkMode,
+                                        onPostClick = { navController.navigate("postdetail/${post.id}?isTval=true") }
+                                    )
+                                }
+                                item {
+                                    if (state.hasMore) {
+                                        Button(onClick = { wordPressViewModel.fetchTvalNextPage() }, modifier = Modifier.padding(16.dp)) {
+                                            Text("Load More")
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Adaptive(minSize = 300.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(state.posts, key = { it.id }) { post ->
+                                    PostItem(
+                                        post = post, 
+                                        navController = navController, 
+                                        isDarkMode = isDarkMode,
+                                        onPostClick = { navController.navigate("postdetail/${post.id}?isTval=true") }
+                                    )
+                                }
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    if (state.hasMore) {
+                                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                            Button(onClick = { wordPressViewModel.fetchTvalNextPage() }, modifier = Modifier.padding(16.dp)) {
+                                                Text("Load More")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                is PostUiState.Error -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = state.message)
+                        Button(onClick = { wordPressViewModel.fetchTVALPosts(false, page = 1, date = selectedDate) }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+}
+
+@Composable
+fun DateSelector(
+    dates: List<Pair<String, String>>,
+    selectedDate: String?,
+    onDateSelected: (String?) -> Unit,
+    isDarkMode: Boolean
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = selectedDate == null,
+                onClick = { onDateSelected(null) },
+                label = { Text("All Dates") },
+                isDarkMode = isDarkMode
+            )
+        }
+        items(dates) { (dateStr, displayStr) ->
+            FilterChip(
+                selected = selectedDate == dateStr,
+                onClick = { onDateSelected(dateStr) },
+                label = { Text(displayStr) },
+                isDarkMode = isDarkMode
+            )
+        }
+    }
+}
+
+@Composable
+fun FilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    isDarkMode: Boolean
+) {
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) Color(0xFF0050DB) else if (isDarkMode) Color.DarkGray else Color.LightGray,
+        contentColor = if (selected) Color.White else if (isDarkMode) Color.White else Color.Black,
+        modifier = Modifier.height(32.dp)
+    ) {
+        Box(modifier = Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            label()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchScreen(
+    navController: NavController, 
+    wordPressViewModel: WordPressViewModel, 
+    windowSize: WindowSize, 
+    isDarkMode: Boolean,
+    searchMode: String = "blog"
+) {
     var query by remember { mutableStateOf("") }
     var appliedQuery by remember { mutableStateOf("") }
-    val uiState by wordPressViewModel.uiState.collectAsState()
+    val uiState by (if (searchMode == "tval") wordPressViewModel.tvalUiState else wordPressViewModel.uiState).collectAsState()
 
     Column {
         TopAppBar(
@@ -1404,7 +1647,7 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                     onValueChange = { query = it },
                     placeholder = { 
                         Text(
-                            text = "Search Blog Posts...",
+                            text = if (searchMode == "tval") "Search TV Ad Listings..." else "Search Blog Posts...",
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontFamily = Gilroy,
                                 fontWeight = FontWeight.Normal
@@ -1429,7 +1672,11 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
                         appliedQuery = query
-                        wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
+                        if (searchMode == "tval") {
+                            wordPressViewModel.fetchTVALPosts(isRefreshing = true, page = 1, searchQuery = query)
+                        } else {
+                            wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
+                        }
                     })
                 )
             },
@@ -1458,7 +1705,11 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                                 navController = navController, 
                                 highlightQuery = appliedQuery,
                                 showTags = false,
-                                isDarkMode = isDarkMode
+                                isDarkMode = isDarkMode,
+                                onPostClick = {
+                                    val suffix = if (searchMode == "tval") "?isTval=true" else ""
+                                    navController.navigate("postdetail/${post.id}$suffix")
+                                }
                             )
                         }
                     }
@@ -1474,7 +1725,11 @@ fun SearchScreen(navController: NavController, wordPressViewModel: WordPressView
                                 navController = navController, 
                                 highlightQuery = appliedQuery,
                                 showTags = false,
-                                isDarkMode = isDarkMode
+                                isDarkMode = isDarkMode,
+                                onPostClick = {
+                                    val suffix = if (searchMode == "tval") "?isTval=true" else ""
+                                    navController.navigate("postdetail/${post.id}$suffix")
+                                }
                             )
                         }
                     }
@@ -1667,15 +1922,17 @@ sealed class Screen(val route: String, val label: String, @param:DrawableRes val
     object Home : Screen("home", "Home", R.drawable.phcaapp_home)
     object Blog : Screen("blog", "Blog", R.drawable.phcaapp_blog)
     object Newsletter : Screen("newsletter", "Newsletter", R.drawable.phcaapp_newsletter)
+    object TVAdListings : Screen("tval", "TV Ad Listings", R.drawable.phcaapp_tval)
 }
 
 @Composable
 fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
-    val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter)
+    val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter, Screen.TVAdListings)
     val selectedColors = mapOf(
         Screen.Home.route to Color(0xFF128FF1),
         Screen.Blog.route to Color(0xFF734CC2),
-        Screen.Newsletter.route to Color(0xFFDA048F)
+        Screen.Newsletter.route to Color(0xFFDA048F),
+        Screen.TVAdListings.route to Color(0xFF0050DB)
     )
 
     NavigationBar(
@@ -1714,10 +1971,10 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
                     ) 
                 },
                 icon = {
-                    Image(
+                    Icon(
                         painter = painterResource(id = screen.icon),
                         contentDescription = screen.label,
-                        colorFilter = ColorFilter.tint(tint),
+                        tint = tint,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                 },

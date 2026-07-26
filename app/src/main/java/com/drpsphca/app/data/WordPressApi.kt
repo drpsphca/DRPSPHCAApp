@@ -12,6 +12,8 @@ interface WordPressApi {
         @Query("categories") categories: Int? = null,
         @Query("search") search: String? = null,
         @Query("tags") tags: String? = null,
+        @Query("after") after: String? = null,
+        @Query("before") before: String? = null,
     ): List<Post>
 
     @GET("wp/v2/posts/{id}?_embed")

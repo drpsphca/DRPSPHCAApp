@@ -19,7 +19,7 @@ fun BannerAd(modifier: Modifier = Modifier) {
         modifier = modifier,
         factory = { context ->
             BannerView(context).apply {
-                adId = BuildConfig.ADS_UNIT_ID
+                adId = com.drpsphca.app.BuildConfig.ADS_UNIT_ID
                 bannerAdSize = BannerAdSize.BANNER_SIZE_320_50
                 loadAd(AdParam.Builder().build())
             }

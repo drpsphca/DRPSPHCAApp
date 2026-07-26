@@ -18,8 +18,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "WORDPRESS_API_URL", "\"${providers.gradleProperty("WORDPRESS_API_URL").get()}\"")
-        buildConfigField("String", "WORDPRESS_API_KEY", "\"${providers.gradleProperty("WORDPRESS_API_KEY").get()}\"")
+        buildConfigField("String", "WORDPRESS_API_URL", "\"https://drpsphca.com/wp-json/\"")
+        buildConfigField("String", "WORDPRESS_API_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJkcnBzcGhjYSIsImlhdCI6MTc2OTQyOTMzNCwiZXhwIjoxOTI3MTA5MzM0fQ.-nKP0IFtPUgyvWb2hIsuFep424Xx2CYYCpITHR_GJoA\"")
+        buildConfigField("String", "TVAL_API_URL", "\"https://tval.drpsphca.com/wp-json/\"")
+        buildConfigField("String", "TVAL_API_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjYsIm5hbWUiOiJhcHBzeXN0dmFsIiwiaWF0IjoxNzg0ODczMjc5LCJleHAiOjE5NDI1NTMyNzl9.Gava56ERdrkmd9OE8pdFKlzcNnEzR6s8-HRduVUZWQA\"")
     }
 
     flavorDimensions.add("distribution")
@@ -58,6 +60,7 @@ android {
         compose = true
         buildConfig = true
     }
+    // Added a comment to trigger sync
 }
 
 dependencies {
