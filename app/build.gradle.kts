@@ -65,7 +65,10 @@ android {
 
 dependencies {
     "huaweiImplementation"(libs.huawei.ads)
+    "huaweiImplementation"(libs.huawei.appgallery.kit)
     "googlePlayImplementation"(libs.google.ads)
+    "googlePlayImplementation"(libs.google.app.update)
+    "googlePlayImplementation"(libs.google.app.update.ktx)
     implementation(libs.androidx.fragment)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)

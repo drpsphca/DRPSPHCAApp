@@ -102,6 +102,8 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
+import com.drpsphca.app.util.AppUpdateHelper
+import com.drpsphca.app.util.AppUpdateHelperImpl
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.unit.DpOffset
@@ -137,6 +139,8 @@ import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var appUpdateHelper: AppUpdateHelper
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -191,6 +195,10 @@ class MainActivity : ComponentActivity() {
         // Initialize Ads SDK (flavor-specific)
         initAds(this)
         
+        // Initialize App Update Check (flavor-specific)
+        appUpdateHelper = AppUpdateHelperImpl(this)
+        appUpdateHelper.checkForUpdates(this)
+        
         setContent {
             val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
             val darkTheme = when (darkModeConfig) {
@@ -200,6 +208,7 @@ class MainActivity : ComponentActivity() {
             }
             
             DRPSPHCATheme(darkTheme = darkTheme) {
+                appUpdateHelper.UpdateDialog()
                 Surface(
                     modifier = Modifier.fillMaxSize(), 
                     color = MaterialTheme.colorScheme.surface
