@@ -32,7 +32,7 @@ firebaseMessaging = "25.1.2"
 composeMaterial3WindowSizeClass = "1.4.0"
 room = "2.8.4"
 googleAppUpdate = "2.1.0"
-huaweiAppGalleryKit = "6.5.0.300"
+huaweiAppService = "6.5.0.300"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -80,7 +80,7 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 google-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "googleAppUpdate" }
 google-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "googleAppUpdate" }
-huawei-appgallery-kit = { group = "com.huawei.hms", name = "appgallerykit", version.ref = "huaweiAppGalleryKit" }
+huawei-appservice = { group = "com.huawei.hms", name = "appservice", version.ref = "huaweiAppService" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

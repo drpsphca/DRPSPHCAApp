@@ -65,7 +65,7 @@ android {
 
 dependencies {
     "huaweiImplementation"(libs.huawei.ads)
-    "huaweiImplementation"(libs.huawei.appgallery.kit)
+    "huaweiImplementation"(libs.huawei.appservice)
     "googlePlayImplementation"(libs.google.ads)
     "googlePlayImplementation"(libs.google.app.update)
     "googlePlayImplementation"(libs.google.app.update.ktx)
