@@ -43,7 +43,7 @@ class AppUpdateHelperImpl(private val activity: Activity) : AppUpdateHelper {
     }
 
     @Composable
-    override fun UpdateDialog() {
+    override fun UpdateDialog(isDarkMode: Boolean) {
         // Huawei handles its own dialog via showUpdateDialog
     }
 }

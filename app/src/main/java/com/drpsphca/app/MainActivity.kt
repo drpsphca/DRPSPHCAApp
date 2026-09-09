@@ -10,7 +10,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -211,7 +210,7 @@ class MainActivity : ComponentActivity() {
             }
             
             DRPSPHCATheme(darkTheme = darkTheme) {
-                appUpdateHelper.UpdateDialog()
+                appUpdateHelper.UpdateDialog(isDarkMode = darkTheme)
                 Surface(
                     modifier = Modifier.fillMaxSize(), 
                     color = MaterialTheme.colorScheme.surface
@@ -436,12 +435,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         }
     }
     val navController = rememberNavController()
-    var isSystemBackTriggered by remember { mutableStateOf(false) }
-
-    BackHandler(enabled = navController.previousBackStackEntry != null) {
-        isSystemBackTriggered = true
-        navController.popBackStack()
-    }
 
     val navigateToPostId by wordPressViewModel.navigateToPostId.collectAsState()
     LaunchedEffect(navigateToPostId) {
@@ -452,10 +445,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    LaunchedEffect(navBackStackEntry) {
-        // Reset the flag after any navigation happens
-        isSystemBackTriggered = false
-    }
     val currentRoute = navBackStackEntry?.destination?.route
     val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route, Screen.TVAdListings.route)
     val windowSize = rememberWindowSizeClass()
@@ -474,13 +463,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         NavHost(
             navController = navController,
             startDestination = "home",
-            popExitTransition = {
-                if (isSystemBackTriggered) {
-                    fadeOut()
-                } else {
-                    fadeOut() + scaleOut(targetScale = 0.8f)
-                }
-            },
+            popExitTransition = { fadeOut() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -640,6 +623,8 @@ fun PostDetailRoute(
     isTVAL: Boolean = false
 ) {
     val context = LocalContext.current
+    var isFullscreen by remember { mutableStateOf(false) }
+
     LaunchedEffect(postId) {
         if (postId != null) {
             wordPressViewModel.fetchPost(postId, isTVAL)
@@ -648,110 +633,112 @@ fun PostDetailRoute(
     val uiState by wordPressViewModel.uiState.collectAsState()
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = if (isTVAL) "TV Ad Listing" else "Post",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = Gilroy,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (!isTVAL && uiState is PostUiState.PostSuccess) {
-                        val post = (uiState as PostUiState.PostSuccess).post
-                        val bookmarkedPosts by wordPressViewModel.bookmarkedPosts.collectAsState()
-                        val isBookmarked = bookmarkedPosts.any { it.id == post.id }
-                        
-                        val downloadedPosts by wordPressViewModel.downloadedPosts.collectAsState()
-                        val isDownloaded = downloadedPosts.any { it.id == post.id }
-                        
-                        val downloadingIds by wordPressViewModel.downloadingPostIds.collectAsState()
-                        val isDownloading = post.id in downloadingIds
-                        
-                        val bookmarkingIds by wordPressViewModel.bookmarkingPostIds.collectAsState()
-                        val isBookmarking = post.id in bookmarkingIds
-                        val isOnline = isOnline(context)
-                        
-                        if (isBookmarking) {
-                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                            }
-                        } else {
-                            IconButton(
-                                onClick = { 
-                                    wordPressViewModel.toggleBookmark(post.toItemUiModel()) { added ->
-                                        if (added) {
-                                            Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
-                                enabled = isOnline
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.phcaapp_bookmarks),
-                                    contentDescription = "Bookmark",
-                                    tint = if (!isOnline) Color.Gray else if (isBookmarked) Color(0xFF128FF1) else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                        
-                        if (isDownloading) {
-                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                            }
-                        } else {
-                            IconButton(
-                                onClick = { 
-                                    val wasDownloaded = isDownloaded
-                                    wordPressViewModel.toggleDownload(post) { success ->
-                                        if (success) {
-                                            Toast.makeText(context, "Post downloaded and saved to device", Toast.LENGTH_SHORT).show()
-                                        } else if (wasDownloaded) {
-                                            Toast.makeText(context, "Download deleted from device.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
-                                enabled = isOnline
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.phcaapp_download),
-                                    contentDescription = "Download",
-                                    tint = if (!isOnline) Color.Gray else if (isDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(onClick = { 
-                            sharePost(context, post.plainTitle, post.link)
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.phcaapp_share),
-                                contentDescription = "Share",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurface
+            if (!isFullscreen) {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            text = if (isTVAL) "TV Ad Listing" else "Post",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold
                             )
+                        ) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                windowInsets = WindowInsets(0, 0, 0, 0)
-            )
+                    },
+                    actions = {
+                        if (!isTVAL && uiState is PostUiState.PostSuccess) {
+                            val post = (uiState as PostUiState.PostSuccess).post
+                            val bookmarkedPosts by wordPressViewModel.bookmarkedPosts.collectAsState()
+                            val isBookmarked = bookmarkedPosts.any { it.id == post.id }
+                            
+                            val downloadedPosts by wordPressViewModel.downloadedPosts.collectAsState()
+                            val isDownloaded = downloadedPosts.any { it.id == post.id }
+                            
+                            val downloadingIds by wordPressViewModel.downloadingPostIds.collectAsState()
+                            val isDownloading = post.id in downloadingIds
+                            
+                            val bookmarkingIds by wordPressViewModel.bookmarkingPostIds.collectAsState()
+                            val isBookmarking = post.id in bookmarkingIds
+                            val isOnline = isOnline(context)
+                            
+                            if (isBookmarking) {
+                                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { 
+                                        wordPressViewModel.toggleBookmark(post.toItemUiModel()) { added ->
+                                            if (added) {
+                                                Toast.makeText(context, "Post added to bookmarks", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Bookmark removed.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    enabled = isOnline
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.phcaapp_bookmarks),
+                                        contentDescription = "Bookmark",
+                                        tint = if (!isOnline) Color.Gray else if (isBookmarked) Color(0xFF128FF1) else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            
+                            if (isDownloading) {
+                                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { 
+                                        val wasDownloaded = isDownloaded
+                                        wordPressViewModel.toggleDownload(post) { success ->
+                                            if (success) {
+                                                Toast.makeText(context, "Post downloaded and saved to device", Toast.LENGTH_SHORT).show()
+                                            } else if (wasDownloaded) {
+                                                Toast.makeText(context, "Download deleted from device.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    enabled = isOnline
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.phcaapp_download),
+                                        contentDescription = "Download",
+                                        tint = if (!isOnline) Color.Gray else if (isDownloaded) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+
+                            IconButton(onClick = { 
+                                sharePost(context, post.plainTitle, post.link)
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.phcaapp_share),
+                                    contentDescription = "Share",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    windowInsets = WindowInsets(0, 0, 0, 0)
+                )
+            }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
+        Box(modifier = Modifier.padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)) {
             when (val state = uiState) {
                 is PostUiState.Loading, is PostUiState.Success, PostUiState.Idle -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -768,7 +755,8 @@ fun PostDetailRoute(
                         onTagClick = { tagName ->
                             val encodedTag = Uri.encode(tagName)
                             navController.navigate("tag/$encodedTag")
-                        }
+                        },
+                        onFullscreenToggle = { isFullscreen = it }
                     )
                 }
 

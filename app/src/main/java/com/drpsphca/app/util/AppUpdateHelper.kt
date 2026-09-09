@@ -7,5 +7,5 @@ interface AppUpdateHelper {
     fun checkForUpdates(activity: Activity)
 
     @Composable
-    fun UpdateDialog()
+    fun UpdateDialog(isDarkMode: Boolean)
 }

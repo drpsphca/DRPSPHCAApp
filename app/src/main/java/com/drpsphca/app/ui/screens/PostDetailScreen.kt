@@ -28,7 +28,8 @@ fun PostDetailScreen(
     post: PostDetailUiModel, 
     isDarkMode: Boolean, 
     isOffline: Boolean = false,
-    onTagClick: (String) -> Unit = {}
+    onTagClick: (String) -> Unit = {},
+    onFullscreenToggle: (Boolean) -> Unit = {}
 ) {
     val isDarkTheme = isDarkMode
     var customView by remember { mutableStateOf<View?>(null) }
@@ -41,6 +42,7 @@ fun PostDetailScreen(
         customViewCallback?.onCustomViewHidden()
         customView = null
         customViewCallback = null
+        onFullscreenToggle(false)
     }
 
     // Stop media when screen is dismissed
@@ -474,6 +476,7 @@ fun PostDetailScreen(
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                             customView = view
                             customViewCallback = callback
+                            onFullscreenToggle(true)
                             
                             (context as? Activity)?.window?.let { window ->
                                 val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -485,6 +488,7 @@ fun PostDetailScreen(
                         override fun onHideCustomView() {
                             customView = null
                             customViewCallback = null
+                            onFullscreenToggle(false)
                             
                             (context as? Activity)?.window?.let { window ->
                                 val controller = WindowCompat.getInsetsController(window, window.decorView)

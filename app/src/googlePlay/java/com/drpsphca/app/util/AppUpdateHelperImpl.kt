@@ -28,7 +28,7 @@ class AppUpdateHelperImpl(private val activity: Activity) : AppUpdateHelper {
     }
 
     @Composable
-    override fun UpdateDialog() {
+    override fun UpdateDialog(isDarkMode: Boolean) {
         val show by _showUpdateDialog.collectAsState()
         if (show) {
             AlertDialog(
