@@ -1,6 +1,7 @@
 package com.drpsphca.app.ui.screens
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -470,11 +474,22 @@ fun PostDetailScreen(
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                             customView = view
                             customViewCallback = callback
+                            
+                            (context as? Activity)?.window?.let { window ->
+                                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                                controller.hide(WindowInsetsCompat.Type.systemBars())
+                                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            }
                         }
 
                         override fun onHideCustomView() {
                             customView = null
                             customViewCallback = null
+                            
+                            (context as? Activity)?.window?.let { window ->
+                                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                                controller.show(WindowInsetsCompat.Type.systemBars())
+                            }
                         }
                     }
                 }

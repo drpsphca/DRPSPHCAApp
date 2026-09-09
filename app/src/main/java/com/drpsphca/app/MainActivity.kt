@@ -4,10 +4,13 @@ package com.drpsphca.app
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -433,6 +436,12 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         }
     }
     val navController = rememberNavController()
+    var isSystemBackTriggered by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = navController.previousBackStackEntry != null) {
+        isSystemBackTriggered = true
+        navController.popBackStack()
+    }
 
     val navigateToPostId by wordPressViewModel.navigateToPostId.collectAsState()
     LaunchedEffect(navigateToPostId) {
@@ -443,6 +452,10 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        // Reset the flag after any navigation happens
+        isSystemBackTriggered = false
+    }
     val currentRoute = navBackStackEntry?.destination?.route
     val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route, Screen.TVAdListings.route)
     val windowSize = rememberWindowSizeClass()
@@ -461,6 +474,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         NavHost(
             navController = navController,
             startDestination = "home",
+            popExitTransition = {
+                if (isSystemBackTriggered) {
+                    fadeOut()
+                } else {
+                    fadeOut() + scaleOut(targetScale = 0.8f)
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
