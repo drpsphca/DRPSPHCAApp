@@ -5,6 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class Post(
     val id: Int,
     val date: String,
+    val modified: String,
     val link: String,
     val title: Rendered,
     val content: Rendered,

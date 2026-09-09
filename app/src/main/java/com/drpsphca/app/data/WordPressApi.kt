@@ -14,6 +14,8 @@ interface WordPressApi {
         @Query("tags") tags: String? = null,
         @Query("after") after: String? = null,
         @Query("before") before: String? = null,
+        @Query("modified_after") modifiedAfter: String? = null,
+        @Query("modified_before") modifiedBefore: String? = null,
     ): List<Post>
 
     @GET("wp/v2/posts/{id}?_embed")

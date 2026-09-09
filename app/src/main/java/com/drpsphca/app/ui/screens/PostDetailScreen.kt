@@ -29,6 +29,8 @@ fun PostDetailScreen(
     val isDarkTheme = isDarkMode
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+    
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
     // Handle back button for fullscreen video
     BackHandler(enabled = customView != null) {
@@ -37,7 +39,21 @@ fun PostDetailScreen(
         customViewCallback = null
     }
 
-    val htmlContent = """
+    // Stop media when screen is dismissed
+    DisposableEffect(Unit) {
+        onDispose {
+            webViewRef?.apply {
+                onPause()
+                loadUrl("about:blank")
+                clearHistory()
+                removeAllViews()
+                destroy()
+            }
+        }
+    }
+
+    val htmlContent = remember(post, isDarkTheme, isOffline) {
+        """
         <!DOCTYPE html>
         <html>
         <head>
@@ -392,12 +408,14 @@ fun PostDetailScreen(
             </script>
         </body>
         </html>
-    """
+    """.trimIndent()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { context ->
                 WebView(context).apply {
+                    webViewRef = this
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -411,6 +429,10 @@ fun PostDetailScreen(
                         mediaPlaybackRequiresUserGesture = false
                         allowFileAccess = true
                         allowContentAccess = true
+                        
+                        // Fullscreen support
+                        javaScriptCanOpenWindowsAutomatically = true
+                        setSupportMultipleWindows(true)
                         
                         // Use false for more predictable mobile rendering of our custom HTML
                         useWideViewPort = false
@@ -458,9 +480,12 @@ fun PostDetailScreen(
                 }
             },
             update = { webView ->
-                // Using null base URL or "file:///" can help with local file access and avoid mixed content issues
+                // Check if we need to load content to avoid reload on rotation
                 val baseUrl = if (isOffline) "file:///" else "https://drpsphca.com"
-                webView.loadDataWithBaseURL(baseUrl, htmlContent, "text/html", "utf-8", null)
+                if (webView.url == null || webView.tag != htmlContent) {
+                    webView.loadDataWithBaseURL(baseUrl, htmlContent, "text/html", "utf-8", null)
+                    webView.tag = htmlContent
+                }
             },
             modifier = Modifier.fillMaxSize()
         )

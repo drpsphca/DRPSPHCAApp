@@ -245,24 +245,24 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         try {
-            var after: String? = null
-            var before: String? = null
+            var modifiedAfter: String? = null
+            var modifiedBefore: String? = null
             
             if (date != null) {
                 // date is in "yyyy-MM-dd"
-                after = "${date}T00:00:00"
-                before = "${date}T23:59:59"
+                modifiedAfter = "${date}T00:00:00"
+                modifiedBefore = "${date}T23:59:59"
             }
 
             val posts = tvalApi.getPosts(
                 page = page,
                 perPage = perPage,
                 search = searchQuery,
-                after = after,
-                before = before
+                modifiedAfter = modifiedAfter,
+                modifiedBefore = modifiedBefore
             )
 
-            var uiModels = posts.map { it.toUiModel() }
+            var uiModels = posts.map { it.toUiModel(isTval = true) }
             
             if (searchQuery != null) {
                 uiModels = uiModels.filter { it.plainTitle.contains(searchQuery, ignoreCase = true) }
@@ -664,7 +664,7 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
                     }
 
                     val post = if (isTval) tvalApi.getPost(id) else wordPressApi.getPost(id)
-                    _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel()) }
+                    _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel(isTval = isTval)) }
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching post", e)
                     _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
@@ -673,10 +673,11 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun Post.toUiModel(): PostItemUiModel {
-        val formattedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(date)?.let {
+    private fun Post.toUiModel(isTval: Boolean = false): PostItemUiModel {
+        val dateToUse = if (isTval) modified else date
+        val formattedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(dateToUse)?.let {
             SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it)
-        } ?: date
+        } ?: dateToUse
         val plainTitle = Html.fromHtml(title.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
         val plainExcerpt = Html.fromHtml(excerpt.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
         val imageUrl = embedded?.featuredMedia?.firstOrNull()?.sourceUrl
@@ -699,10 +700,11 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    private fun Post.toDetailUiModel(): PostDetailUiModel {
-        val formattedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(date)?.let {
+    private fun Post.toDetailUiModel(isTval: Boolean = false): PostDetailUiModel {
+        val dateToUse = if (isTval) modified else date
+        val formattedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(dateToUse)?.let {
             SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it)
-        } ?: date
+        } ?: dateToUse
         val plainTitle = Html.fromHtml(title.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
         val plainExcerpt = Html.fromHtml(excerpt.rendered, Html.FROM_HTML_MODE_COMPACT).toString()
         val imageUrl = embedded?.featuredMedia?.firstOrNull()?.sourceUrl

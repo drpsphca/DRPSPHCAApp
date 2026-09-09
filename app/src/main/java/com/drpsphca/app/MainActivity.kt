@@ -55,10 +55,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1291,11 +1295,28 @@ fun NewsletterItem(post: PostItemUiModel, navController: NavController, windowSi
 
 @Composable
 fun WebViewScreen(url: String) {
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    
+    DisposableEffect(Unit) {
+        onDispose {
+            webViewRef?.apply {
+                onPause()
+                loadUrl("about:blank")
+                clearHistory()
+                removeAllViews()
+                destroy()
+            }
+        }
+    }
+
     AndroidView(factory = { context ->
         WebView(context).apply {
+            webViewRef = this
             // WARNING: Using setJavaScriptEnabled(true) can introduce XSS vulnerabilities.
             // Review carefully if JavaScript is strictly required for this WebView.
-            // settings.javaScriptEnabled = true // Removed to fix warning
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
                     val newUrl = request?.url?.toString() ?: return false
@@ -1322,8 +1343,10 @@ fun WebViewScreen(url: String) {
         }
     }, update = { webView ->
         // Only load if the URL is different to avoid refreshing when the view updates
-        if (webView.url != url) {
+        // We use a tag to track the intended URL because webView.url might change due to redirects
+        if (webView.tag != url) {
             webView.loadUrl(url)
+            webView.tag = url
         }
     })
 }
