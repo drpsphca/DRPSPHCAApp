@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -414,7 +417,7 @@ fun TopBarWithActions(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     )
 }
 
@@ -463,7 +466,8 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
             ) {
                 BottomNavigationBar(navController = navController, isDarkMode = isDarkMode)
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -744,7 +748,7 @@ fun PostDetailRoute(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    windowInsets = WindowInsets(0, 0, 0, 0)
+                    windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
                 )
             }
         }
@@ -1742,7 +1746,8 @@ fun SearchScreen(
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
         // Results
         when (val state = uiState) {
@@ -1819,7 +1824,8 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
@@ -1876,7 +1882,8 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
@@ -1936,7 +1943,8 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
