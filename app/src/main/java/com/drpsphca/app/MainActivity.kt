@@ -9,7 +9,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -435,6 +439,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         }
     }
     val navController = rememberNavController()
+    var isFullscreen by remember { mutableStateOf(false) }
 
     val navigateToPostId by wordPressViewModel.navigateToPostId.collectAsState()
     LaunchedEffect(navigateToPostId) {
@@ -452,7 +457,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     Scaffold(
         bottomBar = {
             AnimatedVisibility(
-                visible = currentRoute in bottomBarRoutes,
+                visible = currentRoute in bottomBarRoutes && !isFullscreen,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it })
             ) {
@@ -463,10 +468,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         NavHost(
             navController = navController,
             startDestination = "home",
-            popExitTransition = { fadeOut() },
+            enterTransition = { fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1f, animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1f, animationSpec = tween(300)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1f, animationSpec = tween(300)) },
+            popExitTransition = { fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1f, animationSpec = tween(300)) },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
             composable("home") {
                 HomeScreen(
@@ -582,7 +590,9 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     navController = navController,
                     postId = postId,
                     isDarkMode = isDarkMode,
-                    isTVAL = isTval
+                    isTVAL = isTval,
+                    isFullscreen = isFullscreen,
+                    onFullscreenToggle = { isFullscreen = it }
                 )
             }
             composable("webview/{url}") { backStackEntry ->
@@ -620,10 +630,11 @@ fun PostDetailRoute(
     navController: NavController,
     postId: Int?,
     isDarkMode: Boolean,
-    isTVAL: Boolean = false
+    isTVAL: Boolean = false,
+    isFullscreen: Boolean,
+    onFullscreenToggle: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
-    var isFullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(postId) {
         if (postId != null) {
@@ -756,7 +767,7 @@ fun PostDetailRoute(
                             val encodedTag = Uri.encode(tagName)
                             navController.navigate("tag/$encodedTag")
                         },
-                        onFullscreenToggle = { isFullscreen = it }
+                        onFullscreenToggle = onFullscreenToggle
                     )
                 }
 
