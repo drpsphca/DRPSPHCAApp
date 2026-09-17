@@ -38,9 +38,16 @@
 # --- Coil ---
 -keep class coil.** { *; }
 
-# --- Huawei Petal Ads ---
+# --- Huawei Petal Ads & HMS ---
 -keep class com.huawei.openalliance.ad.** { *; }
--keep class com.huawei.hms.ads.** { *; }
+-keep class com.huawei.hms.** { *; }
+-keep class com.huawei.agconnect.** { *; }
+-keep interface com.huawei.hms.** { *; }
+-dontwarn com.huawei.android.**
+-dontwarn com.huawei.updatesdk.**
+-dontwarn com.huawei.hms.**
+-dontwarn com.huawei.appgallery.**
+-dontwarn com.huawei.hianalytics.**
 
 # --- App Startup ---
 -keep class androidx.startup.InitializationProvider { *; }
