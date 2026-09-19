@@ -489,7 +489,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = 80.dp,
+                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -515,7 +515,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = 80.dp,
+                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -541,7 +541,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = 80.dp,
+                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -567,7 +567,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = 80.dp,
+                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
