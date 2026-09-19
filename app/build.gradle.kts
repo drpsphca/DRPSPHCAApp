@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26091903
-        versionName = "phcaapp-stable-26.09.19.3"
+        versionCode = 26092001
+        versionName = "phcaapp-stable-26.09.20.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -33,6 +33,10 @@ android {
         register("googlePlay") {
             dimension = "distribution"
             buildConfigField("String", "ADS_UNIT_ID", "\"ca-app-pub-5724714825846987/5308478635\"")
+        }
+        register("appTest") {
+            dimension = "distribution"
+            applicationId = "com.drpsphca.app.test"
         }
     }
 
@@ -107,4 +111,12 @@ dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
+}
+
+androidComponents {
+    onVariants(selector().withFlavor("distribution" to "appTest")) { variant ->
+        tasks.named("process${variant.name.replaceFirstChar { it.uppercase() }}GoogleServices").configure {
+            enabled = false
+        }
+    }
 }

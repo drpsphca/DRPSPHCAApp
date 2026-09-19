@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "com.drpsphca.app.test",
+  "variantName": "appTestRelease",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 26091903,
+      "versionName": "phcaapp-stable-26.09.19.3",
+      "outputFile": "app-appTest-release.apk"
+    }
+  ],
+  "elementType": "File",
+  "baselineProfiles": [
+    {
+      "minApi": 28,
+      "maxApi": 30,
+      "baselineProfiles": [
+        "baselineProfiles/1/app-appTest-release.dm"
+      ]
+    },
+    {
+      "minApi": 31,
+      "maxApi": 2147483647,
+      "baselineProfiles": [
+        "baselineProfiles/0/app-appTest-release.dm"
+      ]
+    }
+  ],
+  "minSdkVersionForDexing": 24
+}
