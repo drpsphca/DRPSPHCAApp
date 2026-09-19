@@ -40,11 +40,19 @@ sealed interface PostUiState {
     @Immutable
     data class Success(val posts: List<PostItemUiModel>, val hasMore: Boolean) : PostUiState
     @Immutable
-    data class PostSuccess(val post: PostDetailUiModel) : PostUiState
-    @Immutable
     data class Error(val message: String) : PostUiState
     object Loading : PostUiState
     object Idle : PostUiState
+}
+
+@Immutable
+sealed interface PostDetailUiState {
+    @Immutable
+    data class Success(val post: PostDetailUiModel) : PostDetailUiState
+    @Immutable
+    data class Error(val message: String) : PostDetailUiState
+    object Loading : PostDetailUiState
+    object Idle : PostDetailUiState
 }
 
 @Immutable
@@ -103,6 +111,9 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _uiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
     val uiState: StateFlow<PostUiState> = _uiState.asStateFlow()
+
+    private val _detailUiState = MutableStateFlow<PostDetailUiState>(PostDetailUiState.Idle)
+    val detailUiState: StateFlow<PostDetailUiState> = _detailUiState.asStateFlow()
 
     private val _tvalUiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
     val tvalUiState: StateFlow<PostUiState> = _tvalUiState.asStateFlow()
@@ -240,7 +251,7 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         if (isRefreshing) {
             _tvalIsRefreshing.value = true
             _tvalCurrentPage.value = 1
-        } else if (page == 1) {
+        } else if (page == 1 && _tvalPosts.value.isEmpty()) {
             _tvalUiState.update { PostUiState.Loading }
         }
 
@@ -321,7 +332,7 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         if (isRefreshing) {
             _isRefreshing.value = true
             _currentPage.value = 1
-        } else if (page == 1) {
+        } else if (page == 1 && _blogPosts.value.isEmpty()) {
             _uiState.update { PostUiState.Loading }
         }
 
@@ -652,22 +663,22 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     fun fetchPost(id: Int, isTval: Boolean = false) {
         viewModelScope.launch {
             mutex.withLock {
-                _uiState.update { PostUiState.Loading }
+                _detailUiState.update { PostDetailUiState.Loading }
                 try {
                     // Check if already downloaded (Downloads are only for main blog for now)
                     if (!isTval) {
                         val downloadedPost = _downloadedPosts.value.find { it.id == id }
                         if (downloadedPost != null) {
-                            _uiState.update { PostUiState.PostSuccess(downloadedPost) }
+                            _detailUiState.update { PostDetailUiState.Success(downloadedPost) }
                             return@withLock
                         }
                     }
 
                     val post = if (isTval) tvalApi.getPost(id) else wordPressApi.getPost(id)
-                    _uiState.update { PostUiState.PostSuccess(post.toDetailUiModel(isTval = isTval)) }
+                    _detailUiState.update { PostDetailUiState.Success(post.toDetailUiModel(isTval = isTval)) }
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching post", e)
-                    _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+                    _detailUiState.update { PostDetailUiState.Error(e.message ?: "Unknown error") }
                 }
             }
         }

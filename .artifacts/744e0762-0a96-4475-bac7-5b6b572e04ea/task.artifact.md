@@ -1,0 +1,2 @@
+- `[x]` Disable system predictive back in `AndroidManifest.xml`
+- `[x]` Verify unified fade animations

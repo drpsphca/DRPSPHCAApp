@@ -101,6 +101,7 @@ import com.drpsphca.app.ui.theme.Gilroy
 import com.drpsphca.app.ui.theme.NotoSerif
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import com.drpsphca.app.ui.viewmodel.PostUiState
+import com.drpsphca.app.ui.viewmodel.PostDetailUiState
 import com.drpsphca.app.ui.viewmodel.WordPressViewModel
 import java.util.Calendar
 import com.drpsphca.app.ui.viewmodel.NewsletterUiState
@@ -144,6 +145,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -472,13 +474,13 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         NavHost(
             navController = navController,
             startDestination = "home",
-            enterTransition = { fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1f, animationSpec = tween(300)) },
-            exitTransition = { fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1f, animationSpec = tween(300)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1f, animationSpec = tween(300)) },
-            popExitTransition = { fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1f, animationSpec = tween(300)) },
+            enterTransition = { fadeIn(animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+            popExitTransition = { fadeOut(animationSpec = tween(300)) },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = paddingValues.calculateBottomPadding())
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             composable("home") {
                 HomeScreen(
@@ -487,6 +489,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
+                    bottomPadding = 80.dp,
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -512,6 +515,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
+                    bottomPadding = 80.dp,
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -537,6 +541,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
+                    bottomPadding = 80.dp,
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -562,6 +567,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
+                    bottomPadding = 80.dp,
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -645,7 +651,7 @@ fun PostDetailRoute(
             wordPressViewModel.fetchPost(postId, isTVAL)
         }
     }
-    val uiState by wordPressViewModel.uiState.collectAsState()
+    val detailUiState by wordPressViewModel.detailUiState.collectAsState()
     Scaffold(
         topBar = {
             if (!isFullscreen) {
@@ -665,8 +671,8 @@ fun PostDetailRoute(
                         }
                     },
                     actions = {
-                        if (!isTVAL && uiState is PostUiState.PostSuccess) {
-                            val post = (uiState as PostUiState.PostSuccess).post
+                        if (!isTVAL && detailUiState is PostDetailUiState.Success) {
+                            val post = (detailUiState as PostDetailUiState.Success).post
                             val bookmarkedPosts by wordPressViewModel.bookmarkedPosts.collectAsState()
                             val isBookmarked = bookmarkedPosts.any { it.id == post.id }
                             
@@ -754,14 +760,14 @@ fun PostDetailRoute(
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)) {
-            when (val state = uiState) {
-                is PostUiState.Loading, is PostUiState.Success, PostUiState.Idle -> {
+            when (val state = detailUiState) {
+                is PostDetailUiState.Loading, PostDetailUiState.Idle -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
 
-                is PostUiState.PostSuccess -> {
+                is PostDetailUiState.Success -> {
                     val isOffline = !isOnline(context)
                     PostDetailScreen(
                         post = state.post, 
@@ -775,7 +781,7 @@ fun PostDetailRoute(
                     )
                 }
 
-                is PostUiState.Error -> {
+                is PostDetailUiState.Error -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.Center,
@@ -821,7 +827,8 @@ fun HomeScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    bottomPadding: Dp = 0.dp
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
@@ -833,7 +840,7 @@ fun HomeScreen(
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
     }
 
-    Column {
+    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
         TopBarWithActions(
             title = {
                 Image(
@@ -950,7 +957,7 @@ fun HomeScreen(
                             }
                         }
                     }
-                    is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
+                    is PostUiState.Idle -> { /* Do Nothing */ }
                 }
 
                 // Footer Section
@@ -1026,7 +1033,8 @@ fun BlogScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
@@ -1037,7 +1045,7 @@ fun BlogScreen(
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
     }
 
-    Column {
+    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
         TopBarWithActions(
             title = { 
                 Text(
@@ -1147,7 +1155,7 @@ fun BlogScreen(
                         }
                     }
                 }
-                is PostUiState.PostSuccess, PostUiState.Idle -> { /* Do Nothing */ }
+                is PostUiState.Idle -> { /* Do Nothing */ }
             }
         }
     }
@@ -1161,13 +1169,14 @@ fun NewsletterScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
-    Column {
+    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
         TopBarWithActions(
             title = { 
                 Text(
@@ -1508,7 +1517,8 @@ fun TVAdListingsScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val tvalUiState by wordPressViewModel.tvalUiState.collectAsState()
     val isRefreshing by wordPressViewModel.tvalIsRefreshing.collectAsState()
@@ -1522,7 +1532,7 @@ fun TVAdListingsScreen(
         }
     }
 
-    Column {
+    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
         TopBarWithActions(
             title = { Text("TV Ad Listings") }, // Will be overridden by logo due to showTvalLogo = true
             showTvalLogo = true,

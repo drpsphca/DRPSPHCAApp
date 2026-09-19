@@ -2,7 +2,9 @@ package com.drpsphca.app.ui.screens
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.net.Uri
+import android.os.Message
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
@@ -455,24 +457,54 @@ fun PostDetailScreen(
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val url = request?.url?.toString() ?: return false
                             
+                            // Always handle app links first
                             if (url.startsWith("app://tag/")) {
                                 val tagName = Uri.decode(url.substringAfter("app://tag/"))
                                 onTagClick(tagName)
                                 return true
                             }
                             
-                            // Open other links in browser or supported app
-                            try {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url))
+                            // If it's the base URL of our content, let it load (though we usually loadData)
+                            // But for actual clicks on links to other pages on the site, we want them in browser too
+                            // so the app stays on the current post.
+                            
+                            // Open all other links in browser or supported app
+                            return try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                                 context.startActivity(intent)
-                                return true
+                                true
                             } catch (e: Exception) {
-                                return false
+                                false
                             }
                         }
                     }
 
                     webChromeClient = object : WebChromeClient() {
+                        override fun onCreateWindow(
+                            view: WebView?,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: Message?
+                        ): Boolean {
+                            val newWebView = WebView(context)
+                            newWebView.webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val url = request?.url?.toString() ?: return false
+                                    return try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        context.startActivity(intent)
+                                        true
+                                    } catch (e: Exception) {
+                                        false
+                                    }
+                                }
+                            }
+                            val transport = resultMsg?.obj as? WebView.WebViewTransport
+                            transport?.webView = newWebView
+                            resultMsg?.sendToTarget()
+                            return true
+                        }
+
                         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                             customView = view
                             customViewCallback = callback
