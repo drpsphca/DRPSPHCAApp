@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.fillMaxSize
@@ -221,7 +222,7 @@ class MainActivity : ComponentActivity() {
             DRPSPHCATheme(darkTheme = darkTheme) {
                 appUpdateHelper.UpdateDialog(isDarkMode = darkTheme)
                 Surface(
-                    modifier = Modifier.fillMaxSize(), 
+                    modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surface
                 ) {
                     WordPressApp(wordPressViewModel)
@@ -419,7 +420,7 @@ fun TopBarWithActions(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+        windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     )
 }
 
@@ -469,7 +470,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 BottomNavigationBar(navController = navController, isDarkMode = isDarkMode)
             }
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -478,9 +479,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
             exitTransition = { fadeOut(animationSpec = tween(300)) },
             popEnterTransition = { fadeIn(animationSpec = tween(300)) },
             popExitTransition = { fadeOut(animationSpec = tween(300)) },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
+            modifier = Modifier.padding(paddingValues)
         ) {
             composable("home") {
                 HomeScreen(
@@ -489,7 +488,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -515,7 +513,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -541,7 +538,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -567,7 +563,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    bottomPadding = paddingValues.calculateBottomPadding(),
                     onNotificationsToggle = {
                         val activity = context as? MainActivity
                         if (!notificationsEnabled) {
@@ -754,7 +749,7 @@ fun PostDetailRoute(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
                 )
             }
         }
@@ -827,8 +822,7 @@ fun HomeScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit,
-    bottomPadding: Dp = 0.dp
+    onNotificationsToggle: () -> Unit
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
@@ -840,7 +834,7 @@ fun HomeScreen(
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 10, forHome = true)
     }
 
-    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
+    Column(modifier = Modifier) {
         TopBarWithActions(
             title = {
                 Image(
@@ -858,14 +852,15 @@ fun HomeScreen(
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") }
         )
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
-                wordPressViewModel.fetchNewsletters(perPage = 1)
-            },
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    wordPressViewModel.fetchPosts(true, page = 1, perPage = 10, forHome = true)
+                    wordPressViewModel.fetchNewsletters(perPage = 1)
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 300.dp),
                 modifier = Modifier.fillMaxSize()
@@ -1022,6 +1017,7 @@ fun HomeScreen(
                 }
             }
         }
+        }
     }
 }
 
@@ -1033,8 +1029,7 @@ fun BlogScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit,
-    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
+    onNotificationsToggle: () -> Unit
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
@@ -1045,7 +1040,7 @@ fun BlogScreen(
         wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
     }
 
-    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
+    Column(modifier = Modifier) {
         TopBarWithActions(
             title = { 
                 Text(
@@ -1169,14 +1164,13 @@ fun NewsletterScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit,
-    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
+    onNotificationsToggle: () -> Unit
 ) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
-    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
+    Column(modifier = Modifier) {
         TopBarWithActions(
             title = { 
                 Text(
@@ -1517,8 +1511,7 @@ fun TVAdListingsScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit,
-    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
+    onNotificationsToggle: () -> Unit
 ) {
     val tvalUiState by wordPressViewModel.tvalUiState.collectAsState()
     val isRefreshing by wordPressViewModel.tvalIsRefreshing.collectAsState()
@@ -1532,7 +1525,7 @@ fun TVAdListingsScreen(
         }
     }
 
-    Column(modifier = Modifier.padding(bottom = bottomPadding)) {
+    Column(modifier = Modifier) {
         TopBarWithActions(
             title = { Text("TV Ad Listings") }, // Will be overridden by logo due to showTvalLogo = true
             showTvalLogo = true,
@@ -1757,7 +1750,7 @@ fun SearchScreen(
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+            windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
         // Results
         when (val state = uiState) {
@@ -1835,7 +1828,7 @@ fun BookmarksScreen(navController: NavController, wordPressViewModel: WordPressV
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
@@ -1893,7 +1886,7 @@ fun DownloadsScreen(navController: NavController, wordPressViewModel: WordPressV
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
@@ -1954,7 +1947,7 @@ fun TagScreen(tagName: String, navController: NavController, wordPressViewModel:
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
             )
         }
     ) { padding ->
@@ -2006,7 +1999,8 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
 
     NavigationBar(
         containerColor = if (isDarkMode) Color(0xFF1A1A1A) else Color(0xFFD4D4D4),
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
