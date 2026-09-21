@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26092001
-        versionName = "phcaapp-stable-26.09.20.1"
+        versionCode = 26092101
+        versionName = "phcaapp-stable-26.09.21.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -73,6 +73,8 @@ dependencies {
     "googlePlayImplementation"(libs.google.ads)
     "googlePlayImplementation"(libs.google.app.update)
     "googlePlayImplementation"(libs.google.app.update.ktx)
+    implementation(libs.google.review)
+    implementation(libs.google.review.ktx)
     implementation(libs.androidx.fragment)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)

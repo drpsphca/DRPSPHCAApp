@@ -1,23 +1,35 @@
 
 package com.drpsphca.app
 
+import android.Manifest
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,32 +37,43 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +84,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -81,14 +106,30 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -96,59 +137,25 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
+import com.drpsphca.app.BuildConfig
+import com.drpsphca.app.ui.WindowSize
+import com.drpsphca.app.ui.rememberWindowSizeClass
 import com.drpsphca.app.ui.screens.PostDetailScreen
 import com.drpsphca.app.ui.theme.DRPSPHCATheme
 import com.drpsphca.app.ui.theme.Gilroy
 import com.drpsphca.app.ui.theme.NotoSerif
+import com.drpsphca.app.ui.viewmodel.NewsletterUiState
+import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
+import com.drpsphca.app.ui.viewmodel.PostDetailUiState
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import com.drpsphca.app.ui.viewmodel.PostUiState
-import com.drpsphca.app.ui.viewmodel.PostDetailUiState
 import com.drpsphca.app.ui.viewmodel.WordPressViewModel
-import java.util.Calendar
-import com.drpsphca.app.ui.viewmodel.NewsletterUiState
-import com.drpsphca.app.BuildConfig
-import android.net.Uri
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.compose.ui.viewinterop.AndroidView
-import com.drpsphca.app.ui.WindowSize
-import com.drpsphca.app.ui.rememberWindowSizeClass
 import com.drpsphca.app.util.AppUpdateHelper
 import com.drpsphca.app.util.AppUpdateHelperImpl
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import android.content.Intent
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.content.Context
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.activity.result.contract.ActivityResultContracts
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.compose.ui.unit.Dp
-import androidx.core.content.ContextCompat
+import com.google.android.play.core.review.ReviewManagerFactory
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.messaging.FirebaseMessaging
+import java.util.Calendar
 
 class MainActivity : ComponentActivity() {
 
@@ -241,6 +248,8 @@ fun MorePopupMenu(
     onDismissRequest: () -> Unit,
     onBookmarksClick: () -> Unit,
     onDownloadsClick: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit,
     onDarkModeToggle: () -> Unit,
     onNotificationsToggle: () -> Unit
 ) {
@@ -296,6 +305,50 @@ fun MorePopupMenu(
                 Icon(
                     painter = painterResource(id = R.drawable.phcaapp_download),
                     contentDescription = "Downloads",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "Contact Us",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
+                )
+            },
+            onClick = {
+                onContactUsClick()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_contact),
+                    contentDescription = "Contact Us",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "Rate This App",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal
+                )
+            },
+            onClick = {
+                onRateAppClick()
+                onDismissRequest()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.phcaapp_star),
+                    contentDescription = "Rate This App",
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
@@ -364,7 +417,9 @@ fun TopBarWithActions(
     onNotificationsToggle: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onBookmarksClick: () -> Unit = {},
-    onDownloadsClick: () -> Unit = {}
+    onDownloadsClick: () -> Unit = {},
+    onContactUsClick: () -> Unit = {},
+    onRateAppClick: () -> Unit = {}
 ) {
     var showMoreMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -412,6 +467,8 @@ fun TopBarWithActions(
                     onDismissRequest = { showMoreMenu = false },
                     onBookmarksClick = onBookmarksClick,
                     onDownloadsClick = onDownloadsClick,
+                    onContactUsClick = onContactUsClick,
+                    onRateAppClick = onRateAppClick,
                     onDarkModeToggle = onDarkModeToggle,
                     onNotificationsToggle = onNotificationsToggle
                 )
@@ -422,6 +479,157 @@ fun TopBarWithActions(
         ),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ContactUsScreen(onBackClick: () -> Unit) {
+    val context = LocalContext.current
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Contact Us",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = "DRPSPHCA.com Logo",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "DRPS PHCA App, created by the DRPS Philippine Commercial Archives (DRPS PHCA)",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Email: hello@drpsphca.com",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:hello@drpsphca.com")
+                    }
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Phone: +63 993 733 7082",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                        data = Uri.parse("tel:+639937337082")
+                    }
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val annotatedString = buildAnnotatedString {
+                append("App content are powered by ")
+                withLink(
+                    LinkAnnotation.Url(
+                        url = "https://drpsphca.com",
+                        styles = TextLinkStyles(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        )
+                    )
+                ) {
+                    append("DRPSPHCA.com")
+                }
+            }
+
+            Text(
+                text = annotatedString,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
+    }
+}
+
+private fun requestReview(context: Context) {
+    if (BuildConfig.FLAVOR == "googlePlay") {
+        val manager = com.google.android.play.core.review.ReviewManagerFactory.create(context)
+        val request = manager.requestReviewFlow()
+        request.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val reviewInfo = task.result
+                if (context is Activity) {
+                    val flow = manager.launchReviewFlow(context, reviewInfo)
+                    flow.addOnCompleteListener { 
+                        // Review flow finished
+                    }
+                }
+            } else {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}"))
+                    context.startActivity(intent)
+                }
+            }
+        }
+    } else if (BuildConfig.FLAVOR == "huawei") {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("appmarket://details?id=${context.packageName}"))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appgallery.huawei.com/app/C${context.packageName}"))
+            context.startActivity(intent)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -503,6 +711,12 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                             // Auto-unsubscribe when toggling OFF
                             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
+                    },
+                    onContactUsClick = {
+                        navController.navigate("contactus")
+                    },
+                    onRateAppClick = {
+                        requestReview(context)
                     }
                 )
             }
@@ -528,6 +742,12 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                             // Auto-unsubscribe when toggling OFF
                             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
+                    },
+                    onContactUsClick = {
+                        navController.navigate("contactus")
+                    },
+                    onRateAppClick = {
+                        requestReview(context)
                     }
                 )
             }
@@ -553,6 +773,12 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                             // Auto-unsubscribe when toggling OFF
                             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
+                    },
+                    onContactUsClick = {
+                        navController.navigate("contactus")
+                    },
+                    onRateAppClick = {
+                        requestReview(context)
                     }
                 )
             }
@@ -578,6 +804,12 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                             // Auto-unsubscribe when toggling OFF
                             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
                         }
+                    },
+                    onContactUsClick = {
+                        navController.navigate("contactus")
+                    },
+                    onRateAppClick = {
+                        requestReview(context)
                     }
                 )
             }
@@ -623,6 +855,9 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
             composable("tag/{tagName}") { backStackEntry ->
                 val tagName = backStackEntry.arguments?.getString("tagName") ?: ""
                 TagScreen(tagName = tagName, navController = navController, wordPressViewModel = wordPressViewModel, windowSize = windowSize, isDarkMode = isDarkMode)
+            }
+            composable("contactus") {
+                ContactUsScreen(onBackClick = { navController.popBackStack() })
             }
         }
     }
@@ -822,7 +1057,9 @@ fun HomeScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
@@ -850,7 +1087,9 @@ fun HomeScreen(
             onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
-            onDownloadsClick = { navController.navigate("downloads") }
+            onDownloadsClick = { navController.navigate("downloads") },
+            onContactUsClick = onContactUsClick,
+            onRateAppClick = onRateAppClick
         )
         Box(modifier = Modifier.fillMaxSize()) {
             PullToRefreshBox(
@@ -1029,7 +1268,9 @@ fun BlogScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit
 ) {
     val uiState by wordPressViewModel.uiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
@@ -1058,7 +1299,9 @@ fun BlogScreen(
             onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
-            onDownloadsClick = { navController.navigate("downloads") }
+            onDownloadsClick = { navController.navigate("downloads") },
+            onContactUsClick = onContactUsClick,
+            onRateAppClick = onRateAppClick
         )
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -1164,7 +1407,9 @@ fun NewsletterScreen(
     windowSize: WindowSize, 
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit
 ) {
     val newsletterUiState by wordPressViewModel.newsletterUiState.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
@@ -1188,7 +1433,9 @@ fun NewsletterScreen(
             onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search") },
             onBookmarksClick = { navController.navigate("bookmarks") },
-            onDownloadsClick = { navController.navigate("downloads") }
+            onDownloadsClick = { navController.navigate("downloads") },
+            onContactUsClick = onContactUsClick,
+            onRateAppClick = onRateAppClick
         )
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -1511,7 +1758,9 @@ fun TVAdListingsScreen(
     windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
-    onNotificationsToggle: () -> Unit
+    onNotificationsToggle: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit
 ) {
     val tvalUiState by wordPressViewModel.tvalUiState.collectAsState()
     val isRefreshing by wordPressViewModel.tvalIsRefreshing.collectAsState()
@@ -1536,7 +1785,9 @@ fun TVAdListingsScreen(
             onNotificationsToggle = onNotificationsToggle,
             onSearchClick = { navController.navigate("search?mode=tval") },
             onBookmarksClick = { navController.navigate("bookmarks") },
-            onDownloadsClick = { navController.navigate("downloads") }
+            onDownloadsClick = { navController.navigate("downloads") },
+            onContactUsClick = onContactUsClick,
+            onRateAppClick = onRateAppClick
         )
 
         DateSelector(
