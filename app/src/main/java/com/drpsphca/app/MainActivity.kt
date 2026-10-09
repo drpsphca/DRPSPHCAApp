@@ -2116,8 +2116,20 @@ fun SearchScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var appliedQuery by remember { mutableStateOf("") }
+    var searchPerformed by remember { mutableStateOf(false) }
     var activeBlogSection by remember {
         mutableStateOf(if (searchMode == "appx") WordPressViewModel.BlogSection.BITE_SIZED else WordPressViewModel.BlogSection.BLOGS)
+    }
+
+    val handleBack = {
+        if (searchPerformed || appliedQuery.isNotEmpty()) {
+            wordPressViewModel.reloadAllPosts()
+        }
+        navController.popBackStack()
+    }
+
+    BackHandler {
+        handleBack()
     }
 
     val uiState by (
@@ -2165,6 +2177,7 @@ fun SearchScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
                         appliedQuery = query
+                        searchPerformed = true
                         when {
                             searchMode == "tval" -> wordPressViewModel.fetchTVALPosts(isRefreshing = true, page = 1, searchQuery = query)
                             activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> wordPressViewModel.fetchAppxPosts(isRefreshing = true, page = 1, searchQuery = query)
@@ -2174,7 +2187,7 @@ fun SearchScreen(
                 )
             },
             navigationIcon = {
-                IconButton(onClick = { navController.popBackStack() }) {
+                IconButton(onClick = { handleBack() }) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack, 
                         contentDescription = "Back",

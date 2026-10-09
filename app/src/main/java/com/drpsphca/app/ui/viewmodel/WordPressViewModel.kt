@@ -266,6 +266,16 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun reloadAllPosts() {
+        viewModelScope.launch {
+            mutex.withLock {
+                doFetchPosts(isRefreshing = true, page = 1, perPage = 20, forHome = false)
+                doFetchAppxPosts(isRefreshing = true, page = 1, perPage = 20)
+                doFetchTVALPosts(isRefreshing = true, page = 1, perPage = 20, searchQuery = null, date = _selectedTvalDate.value)
+            }
+        }
+    }
+
     fun fetchPosts(isRefreshing: Boolean, page: Int = _currentPage.value, perPage: Int = 20, forHome: Boolean = false, searchQuery: String? = null, tag: String? = null) {
         viewModelScope.launch {
             mutex.withLock {
