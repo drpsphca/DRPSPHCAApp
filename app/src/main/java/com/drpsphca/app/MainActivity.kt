@@ -536,7 +536,7 @@ fun ContactUsScreen(onBackClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Email: hello@drpsphca.com",
+                text = "Main Email Address: hello@drpsphca.com",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontFamily = Gilroy,
@@ -550,9 +550,57 @@ fun ContactUsScreen(onBackClick: () -> Unit) {
                     context.startActivity(intent)
                 }
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Press Contact: telltofree@drpsphca.com",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:telltofree@drpsphca.com")
+                    }
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "App Feedback: telltophcaapp@drpsphca.com",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:telltophcaapp@drpsphca.com")
+                    }
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "DRPS PHCA TVAL: telltotval@drpsphca.com",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                ),
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:telltotval@drpsphca.com")
+                    }
+                    context.startActivity(intent)
+                }
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Phone: +63 993 733 7082",
+                text = "Phone (SMS/Viber): +63 993 733 7082",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontFamily = Gilroy,
@@ -814,20 +862,23 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                 )
             }
             composable(
-                "postdetail/{postId}?isTval={isTval}",
+                "postdetail/{postId}?isTval={isTval}&isAppx={isAppx}",
                 arguments = listOf(
                     navArgument("postId") { type = NavType.IntType },
-                    navArgument("isTval") { type = NavType.BoolType; defaultValue = false }
+                    navArgument("isTval") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("isAppx") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getInt("postId")
                 val isTval = backStackEntry.arguments?.getBoolean("isTval") ?: false
+                val isAppx = backStackEntry.arguments?.getBoolean("isAppx") ?: false
                 PostDetailRoute(
                     wordPressViewModel = wordPressViewModel,
                     navController = navController,
                     postId = postId,
                     isDarkMode = isDarkMode,
                     isTVAL = isTval,
+                    isAppx = isAppx,
                     isFullscreen = isFullscreen,
                     onFullscreenToggle = { isFullscreen = it }
                 )
@@ -871,14 +922,15 @@ fun PostDetailRoute(
     postId: Int?,
     isDarkMode: Boolean,
     isTVAL: Boolean = false,
+    isAppx: Boolean = false,
     isFullscreen: Boolean,
     onFullscreenToggle: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
 
-    LaunchedEffect(postId) {
+    LaunchedEffect(postId, isTVAL, isAppx) {
         if (postId != null) {
-            wordPressViewModel.fetchPost(postId, isTVAL)
+            wordPressViewModel.fetchPost(postId, isTval = isTVAL, isAppx = isAppx)
         }
     }
     val detailUiState by wordPressViewModel.detailUiState.collectAsState()
@@ -888,7 +940,7 @@ fun PostDetailRoute(
                 TopAppBar(
                     title = { 
                         Text(
-                            text = if (isTVAL) "TV Ad Listing" else "Post",
+                            text = if (isTVAL) "TV Ad Listing" else if (isAppx) "Bite-sized" else "Post",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = Gilroy,
                                 fontWeight = FontWeight.Bold
@@ -1272,13 +1324,24 @@ fun BlogScreen(
     onContactUsClick: () -> Unit,
     onRateAppClick: () -> Unit
 ) {
+    val selectedSection by wordPressViewModel.selectedBlogSection.collectAsState()
     val uiState by wordPressViewModel.uiState.collectAsState()
+    val appxUiState by wordPressViewModel.appxUiState.collectAsState()
     val isRefreshing by wordPressViewModel.isRefreshing.collectAsState()
+    val appxIsRefreshing by wordPressViewModel.appxIsRefreshing.collectAsState()
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
     val isCompact = windowSize == WindowSize.COMPACT
 
-    LaunchedEffect(Unit) {
-        wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
+    LaunchedEffect(selectedSection) {
+        if (selectedSection == WordPressViewModel.BlogSection.BLOGS) {
+            if (uiState !is PostUiState.Success) {
+                wordPressViewModel.fetchPosts(isRefreshing = false, page = 1, perPage = 20)
+            }
+        } else {
+            if (appxUiState !is PostUiState.Success) {
+                wordPressViewModel.fetchAppxPosts(isRefreshing = false, page = 1, perPage = 20)
+            }
+        }
     }
 
     Column(modifier = Modifier) {
@@ -1297,29 +1360,48 @@ fun BlogScreen(
             notificationsEnabled = notificationsEnabled,
             onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
             onNotificationsToggle = onNotificationsToggle,
-            onSearchClick = { navController.navigate("search") },
+            onSearchClick = { 
+                val mode = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) "appx" else "blog"
+                navController.navigate("search?mode=$mode") 
+            },
             onBookmarksClick = { navController.navigate("bookmarks") },
             onDownloadsClick = { navController.navigate("downloads") },
             onContactUsClick = onContactUsClick,
             onRateAppClick = onRateAppClick
         )
+
+        BlogSectionSelector(
+            selectedSection = selectedSection,
+            onSectionSelected = { wordPressViewModel.selectBlogSection(it) },
+            isDarkMode = isDarkMode
+        )
+
+        val currentIsRefreshing = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) appxIsRefreshing else isRefreshing
+        val currentUiState = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) appxUiState else uiState
+
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = currentIsRefreshing,
             onRefresh = {
-                wordPressViewModel.fetchPosts(true, page = 1, perPage = 20)
+                if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                    wordPressViewModel.fetchAppxPosts(true, page = 1, perPage = 20)
+                } else {
+                    wordPressViewModel.fetchPosts(true, page = 1, perPage = 20)
+                }
             },
             modifier = Modifier.fillMaxSize()
         ) {
-            when (val state = uiState) {
-                // ... same states as before
+            when (val state = currentUiState) {
                 is PostUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
                 is PostUiState.Success -> {
+                    val emptyMsg = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) "No Bite-sized posts available." else "No blog posts available."
                     if (state.posts.isEmpty()) {
-                        Text("No blog posts available.", modifier = Modifier.padding(16.dp))
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(emptyMsg, modifier = Modifier.padding(16.dp))
+                        }
                     } else {
                         if (isCompact) {
                             LazyColumn(
@@ -1330,7 +1412,14 @@ fun BlogScreen(
                                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
+                                    PostItem(
+                                        post = post, 
+                                        navController = navController, 
+                                        isDarkMode = isDarkMode,
+                                        onPostClick = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                                            { navController.navigate("postdetail/${post.id}?isAppx=true") }
+                                        } else null
+                                    )
                                 }
                                 item {
                                     if (state.hasMore) {
@@ -1340,7 +1429,13 @@ fun BlogScreen(
                                         ) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                                Button(onClick = { wordPressViewModel.fetchNextPage() }) {
+                                                Button(onClick = { 
+                                                    if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                                                        wordPressViewModel.fetchAppxNextPage()
+                                                    } else {
+                                                        wordPressViewModel.fetchNextPage()
+                                                    }
+                                                }) {
                                                     Text("Load More")
                                                 }
                                             }
@@ -1349,8 +1444,7 @@ fun BlogScreen(
                                     }
                                 }
                             }
-                        }
-                         else {
+                        } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Adaptive(minSize = 300.dp),
                                 modifier = Modifier.fillMaxSize()
@@ -1359,7 +1453,14 @@ fun BlogScreen(
                                     BannerAd(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                                 }
                                 items(state.posts, key = { it.id }) { post ->
-                                    PostItem(post = post, navController = navController, isDarkMode = isDarkMode)
+                                    PostItem(
+                                        post = post, 
+                                        navController = navController, 
+                                        isDarkMode = isDarkMode,
+                                        onPostClick = if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                                            { navController.navigate("postdetail/${post.id}?isAppx=true") }
+                                        } else null
+                                    )
                                 }
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     if (state.hasMore) {
@@ -1369,7 +1470,13 @@ fun BlogScreen(
                                         ) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                                Button(onClick = { wordPressViewModel.fetchNextPage() }) {
+                                                Button(onClick = { 
+                                                    if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                                                        wordPressViewModel.fetchAppxNextPage()
+                                                    } else {
+                                                        wordPressViewModel.fetchNextPage()
+                                                    }
+                                                }) {
                                                     Text("Load More")
                                                 }
                                             }
@@ -1388,7 +1495,13 @@ fun BlogScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(text = state.message)
-                        Button(onClick = { wordPressViewModel.fetchPosts(false, page = 1, perPage = 20) }) {
+                        Button(onClick = { 
+                            if (selectedSection == WordPressViewModel.BlogSection.BITE_SIZED) {
+                                wordPressViewModel.fetchAppxPosts(false, page = 1, perPage = 20)
+                            } else {
+                                wordPressViewModel.fetchPosts(false, page = 1, perPage = 20)
+                            }
+                        }) {
                             Text("Retry")
                         }
                     }
@@ -1882,6 +1995,63 @@ fun TVAdListingsScreen(
 }
 
 @Composable
+fun BlogSectionSelector(
+    selectedSection: WordPressViewModel.BlogSection,
+    onSectionSelected: (WordPressViewModel.BlogSection) -> Unit,
+    isDarkMode: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        BlogFilterChip(
+            selected = selectedSection == WordPressViewModel.BlogSection.BLOGS,
+            onClick = { onSectionSelected(WordPressViewModel.BlogSection.BLOGS) },
+            label = "Blogs",
+            isDarkMode = isDarkMode,
+            modifier = Modifier.weight(1f)
+        )
+        BlogFilterChip(
+            selected = selectedSection == WordPressViewModel.BlogSection.BITE_SIZED,
+            onClick = { onSectionSelected(WordPressViewModel.BlogSection.BITE_SIZED) },
+            label = "Bite-sized",
+            isDarkMode = isDarkMode,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun BlogFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    isDarkMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) Color(0xFF734CC2) else if (isDarkMode) Color.DarkGray else Color.LightGray,
+        contentColor = if (selected) Color.White else if (isDarkMode) Color.White else Color.Black,
+        modifier = modifier.height(32.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = Gilroy,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                )
+            )
+        }
+    }
+}
+
+@Composable
 fun DateSelector(
     dates: List<Pair<String, String>>,
     selectedDate: String?,
@@ -1946,7 +2116,17 @@ fun SearchScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var appliedQuery by remember { mutableStateOf("") }
-    val uiState by (if (searchMode == "tval") wordPressViewModel.tvalUiState else wordPressViewModel.uiState).collectAsState()
+    var activeBlogSection by remember {
+        mutableStateOf(if (searchMode == "appx") WordPressViewModel.BlogSection.BITE_SIZED else WordPressViewModel.BlogSection.BLOGS)
+    }
+
+    val uiState by (
+        when {
+            searchMode == "tval" -> wordPressViewModel.tvalUiState
+            activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> wordPressViewModel.appxUiState
+            else -> wordPressViewModel.uiState
+        }
+    ).collectAsState()
 
     Column {
         TopAppBar(
@@ -1956,7 +2136,11 @@ fun SearchScreen(
                     onValueChange = { query = it },
                     placeholder = { 
                         Text(
-                            text = if (searchMode == "tval") "Search TV Ad Listings..." else "Search Blog Posts...",
+                            text = when {
+                                searchMode == "tval" -> "Search TV Ad Listings..."
+                                activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> "Search Bite-sized Posts..."
+                                else -> "Search Blog Posts..."
+                            },
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontFamily = Gilroy,
                                 fontWeight = FontWeight.Normal
@@ -1981,10 +2165,10 @@ fun SearchScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
                         appliedQuery = query
-                        if (searchMode == "tval") {
-                            wordPressViewModel.fetchTVALPosts(isRefreshing = true, page = 1, searchQuery = query)
-                        } else {
-                            wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
+                        when {
+                            searchMode == "tval" -> wordPressViewModel.fetchTVALPosts(isRefreshing = true, page = 1, searchQuery = query)
+                            activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> wordPressViewModel.fetchAppxPosts(isRefreshing = true, page = 1, searchQuery = query)
+                            else -> wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = query)
                         }
                     })
                 )
@@ -2003,6 +2187,24 @@ fun SearchScreen(
             ),
             windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
+
+        if (searchMode != "tval") {
+            BlogSectionSelector(
+                selectedSection = activeBlogSection,
+                onSectionSelected = { section ->
+                    activeBlogSection = section
+                    if (appliedQuery.isNotEmpty()) {
+                        if (section == WordPressViewModel.BlogSection.BITE_SIZED) {
+                            wordPressViewModel.fetchAppxPosts(isRefreshing = true, page = 1, searchQuery = appliedQuery)
+                        } else {
+                            wordPressViewModel.fetchPosts(isRefreshing = true, page = 1, searchQuery = appliedQuery)
+                        }
+                    }
+                },
+                isDarkMode = isDarkMode
+            )
+        }
+
         // Results
         when (val state = uiState) {
             is PostUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -2017,7 +2219,11 @@ fun SearchScreen(
                                 showTags = false,
                                 isDarkMode = isDarkMode,
                                 onPostClick = {
-                                    val suffix = if (searchMode == "tval") "?isTval=true" else ""
+                                    val suffix = when {
+                                        searchMode == "tval" -> "?isTval=true"
+                                        activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> "?isAppx=true"
+                                        else -> ""
+                                    }
                                     navController.navigate("postdetail/${post.id}$suffix")
                                 }
                             )
@@ -2037,7 +2243,11 @@ fun SearchScreen(
                                 showTags = false,
                                 isDarkMode = isDarkMode,
                                 onPostClick = {
-                                    val suffix = if (searchMode == "tval") "?isTval=true" else ""
+                                    val suffix = when {
+                                        searchMode == "tval" -> "?isTval=true"
+                                        activeBlogSection == WordPressViewModel.BlogSection.BITE_SIZED -> "?isAppx=true"
+                                        else -> ""
+                                    }
                                     navController.navigate("postdetail/${post.id}$suffix")
                                 }
                             )
@@ -2235,7 +2445,7 @@ sealed class Screen(val route: String, val label: String, @param:DrawableRes val
     object Home : Screen("home", "Home", R.drawable.phcaapp_home)
     object Blog : Screen("blog", "Blog", R.drawable.phcaapp_blog)
     object Newsletter : Screen("newsletter", "Newsletter", R.drawable.phcaapp_newsletter)
-    object TVAdListings : Screen("tval", "TV Ad Listings", R.drawable.phcaapp_tval)
+    object TVAdListings : Screen("tval", "TVAL", R.drawable.phcaapp_tval)
 }
 
 @Composable

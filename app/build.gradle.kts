@@ -13,15 +13,24 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26092101
-        versionName = "phcaapp-stable-26.09.21.1"
+        versionCode = 26100901
+        versionName = "phcaapp-stable-26.10.09.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "WORDPRESS_API_URL", "\"https://drpsphca.com/wp-json/\"")
-        buildConfigField("String", "WORDPRESS_API_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJkcnBzcGhjYSIsImlhdCI6MTc2OTQyOTMzNCwiZXhwIjoxOTI3MTA5MzM0fQ.-nKP0IFtPUgyvWb2hIsuFep424Xx2CYYCpITHR_GJoA\"")
-        buildConfigField("String", "TVAL_API_URL", "\"https://tval.drpsphca.com/wp-json/\"")
-        buildConfigField("String", "TVAL_API_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjYsIm5hbWUiOiJhcHBzeXN0dmFsIiwiaWF0IjoxNzg0ODczMjc5LCJleHAiOjE5NDI1NTMyNzl9.Gava56ERdrkmd9OE8pdFKlzcNnEzR6s8-HRduVUZWQA\"")
+        val wordpressApiUrl = providers.gradleProperty("WORDPRESS_API_URL").getOrElse("https://drpsphca.com/wp-json/")
+        val wordpressApiKey = providers.gradleProperty("WORDPRESS_API_KEY").getOrElse("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJkcnBzcGhjYSIsImlhdCI6MTc2OTQyOTMzNCwiZXhwIjoxOTI3MTA5MzM0fQ.-nKP0IFtPUgyvWb2hIsuFep424Xx2CYYCpITHR_GJoA")
+        val tvalApiUrl = providers.gradleProperty("TVAL_API_URL").getOrElse("https://tval.drpsphca.com/wp-json/")
+        val tvalApiKey = providers.gradleProperty("TVAL_API_KEY").getOrElse("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjYsIm5hbWUiOiJhcHBzeXN0dmFsIiwiaWF0IjoxNzg0ODczMjc5LCJleHAiOjE5NDI1NTMyNzl9.Gava56ERdrkmd9OE8pdFKlzcNnEzR6s8-HRduVUZWQA")
+        val appxApiUrl = providers.gradleProperty("APPX_API_URL").getOrElse("https://app.drpsphca.com/wp-json/")
+        val appxApiKey = providers.gradleProperty("APPX_API_KEY").getOrElse("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjUsIm5hbWUiOiJhcHBzeXNtYWluIiwiaWF0IjoxNzkxNTI0NDgwLCJleHAiOjE5NDkyMDQ0ODB9.btMGc-STMitsqthX6rQ_sTV5nM6DISI7vKZXuKWW8gM")
+
+        buildConfigField("String", "WORDPRESS_API_URL", "\"$wordpressApiUrl\"")
+        buildConfigField("String", "WORDPRESS_API_KEY", "\"$wordpressApiKey\"")
+        buildConfigField("String", "TVAL_API_URL", "\"$tvalApiUrl\"")
+        buildConfigField("String", "TVAL_API_KEY", "\"$tvalApiKey\"")
+        buildConfigField("String", "APPX_API_URL", "\"$appxApiUrl\"")
+        buildConfigField("String", "APPX_API_KEY", "\"$appxApiKey\"")
     }
 
     flavorDimensions.add("distribution")

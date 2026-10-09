@@ -167,8 +167,23 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     private val _navigateToPostId = MutableStateFlow<String?>(null)
     val navigateToPostId: StateFlow<String?> = _navigateToPostId.asStateFlow()
 
+    enum class BlogSection { BLOGS, BITE_SIZED }
+    private val _selectedBlogSection = MutableStateFlow(BlogSection.BLOGS)
+    val selectedBlogSection: StateFlow<BlogSection> = _selectedBlogSection.asStateFlow()
+
+    private val _appxUiState = MutableStateFlow<PostUiState>(PostUiState.Loading)
+    val appxUiState: StateFlow<PostUiState> = _appxUiState.asStateFlow()
+
+    private val _appxIsRefreshing = MutableStateFlow(false)
+    val appxIsRefreshing: StateFlow<Boolean> = _appxIsRefreshing.asStateFlow()
+
+    private val _appxPosts = MutableStateFlow<List<PostItemUiModel>>(emptyList())
+    private val _appxCurrentPage = MutableStateFlow(1)
+    private val _appxCategories = MutableStateFlow<List<Category>>(emptyList())
+
     private val wordPressApi = WordPressClient.api
     private val tvalApi = WordPressClient.tvalApi
+    private val appxApi = WordPressClient.appxApi
     private val mutex = Mutex()
 
     init {
@@ -213,6 +228,19 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         prefs.edit().putString("downloads", json).apply()
     }
 
+    fun selectBlogSection(section: BlogSection) {
+        _selectedBlogSection.value = section
+        if (section == BlogSection.BLOGS) {
+            if (_blogPosts.value.isEmpty()) {
+                fetchPosts(isRefreshing = false, page = 1, perPage = 20)
+            }
+        } else {
+            if (_appxPosts.value.isEmpty()) {
+                fetchAppxPosts(isRefreshing = false, page = 1, perPage = 20)
+            }
+        }
+    }
+
     private fun fetchCategories() {
         viewModelScope.launch {
             mutex.withLock {
@@ -226,6 +254,13 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
                     Log.e("WordPressViewModel", "Error fetching categories", e)
                     _uiState.update { PostUiState.Error(e.message ?: "Unknown error") }
                     _newsletterUiState.update { NewsletterUiState.Error(e.message ?: "Unknown error") }
+                }
+
+                try {
+                    val appxCats = appxApi.getCategories()
+                    _appxCategories.value = appxCats
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error fetching AppX categories", e)
                 }
             }
         }
@@ -660,13 +695,93 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun fetchPost(id: Int, isTval: Boolean = false) {
+    fun fetchAppxPosts(isRefreshing: Boolean, page: Int = _appxCurrentPage.value, perPage: Int = 20, searchQuery: String? = null, tag: String? = null) {
+        viewModelScope.launch {
+            mutex.withLock {
+                doFetchAppxPosts(isRefreshing, page, perPage, searchQuery, tag)
+            }
+        }
+    }
+
+    private suspend fun doFetchAppxPosts(isRefreshing: Boolean, page: Int, perPage: Int, searchQuery: String? = null, tag: String? = null) {
+        if (isRefreshing) {
+            _appxIsRefreshing.value = true
+            _appxCurrentPage.value = 1
+        } else if (page == 1 && _appxPosts.value.isEmpty()) {
+            _appxUiState.update { PostUiState.Loading }
+        }
+
+        try {
+            if (_appxCategories.value.isEmpty()) {
+                try {
+                    _appxCategories.value = appxApi.getCategories()
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error fetching AppX categories", e)
+                }
+            }
+            val appCategory = _appxCategories.value.find { it.slug == "app" }
+
+            var tagIds: String? = null
+            if (tag != null) {
+                val tagsList = appxApi.getTags(search = tag)
+                val matchingTag = tagsList.find { it.name.equals(tag, ignoreCase = true) }
+                tagIds = matchingTag?.id?.toString()
+                if (tagIds == null) {
+                    _appxUiState.update { PostUiState.Success(emptyList(), false) }
+                    return
+                }
+            }
+
+            val posts = appxApi.getPosts(
+                page = page,
+                perPage = perPage,
+                categories = appCategory?.id,
+                search = searchQuery,
+                tags = tagIds
+            )
+
+            var uiModels = posts.map { it.toUiModel() }
+
+            if (searchQuery != null) {
+                uiModels = uiModels.filter { it.plainTitle.contains(searchQuery, ignoreCase = true) }
+            }
+
+            val currentPosts = if (page == 1) emptyList() else _appxPosts.value
+            val newPosts = currentPosts + uiModels
+            _appxPosts.value = newPosts
+            _appxCurrentPage.value = page
+
+            val hasMore = posts.size == perPage
+            _appxUiState.update { PostUiState.Success(newPosts, hasMore) }
+        } catch (e: Exception) {
+            Log.e("WordPressViewModel", "Error fetching AppX posts", e)
+            _appxUiState.update { PostUiState.Error(e.message ?: "Unknown error") }
+        } finally {
+            if (isRefreshing) {
+                _appxIsRefreshing.value = false
+            }
+        }
+    }
+
+    fun fetchAppxNextPage() {
+        viewModelScope.launch {
+            mutex.withLock {
+                val uiStateValue = _appxUiState.value
+                if (uiStateValue is PostUiState.Success && uiStateValue.hasMore) {
+                    val nextPage = _appxCurrentPage.value + 1
+                    doFetchAppxPosts(isRefreshing = false, page = nextPage, perPage = 20)
+                }
+            }
+        }
+    }
+
+    fun fetchPost(id: Int, isTval: Boolean = false, isAppx: Boolean = false) {
         viewModelScope.launch {
             mutex.withLock {
                 _detailUiState.update { PostDetailUiState.Loading }
                 try {
                     // Check if already downloaded (Downloads are only for main blog for now)
-                    if (!isTval) {
+                    if (!isTval && !isAppx) {
                         val downloadedPost = _downloadedPosts.value.find { it.id == id }
                         if (downloadedPost != null) {
                             _detailUiState.update { PostDetailUiState.Success(downloadedPost) }
@@ -674,8 +789,12 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
                         }
                     }
 
-                    val post = if (isTval) tvalApi.getPost(id) else wordPressApi.getPost(id)
-                    _detailUiState.update { PostDetailUiState.Success(post.toDetailUiModel(isTval = isTval)) }
+                    val post = when {
+                        isTval -> tvalApi.getPost(id)
+                        isAppx -> appxApi.getPost(id)
+                        else -> wordPressApi.getPost(id)
+                    }
+                    _detailUiState.update { PostDetailUiState.Success(post.toDetailUiModel(isTval = isTval || isAppx)) }
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching post", e)
                     _detailUiState.update { PostDetailUiState.Error(e.message ?: "Unknown error") }

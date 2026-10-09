@@ -42,4 +42,11 @@ object WordPressClient {
         val okClient = getOkHttpClient(apiKey)
         getRetrofit(baseUrl, okClient).create(WordPressApi::class.java)
     }
+
+    val appxApi: WordPressApi by lazy {
+        val apiKey = com.drpsphca.app.BuildConfig.APPX_API_KEY
+        val baseUrl = com.drpsphca.app.BuildConfig.APPX_API_URL
+        val okClient = getOkHttpClient(apiKey)
+        getRetrofit(baseUrl, okClient).create(WordPressApi::class.java)
+    }
 }
