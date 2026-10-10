@@ -1346,14 +1346,12 @@ fun BlogScreen(
 
     Column(modifier = Modifier) {
         TopBarWithActions(
-            title = { 
-                Text(
-                    text = "Blog",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = Gilroy,
-                        fontWeight = FontWeight.Bold
-                    )
-                ) 
+            title = {
+                Image(
+                    painter = painterResource(id = R.drawable.freeblog),
+                    contentDescription = "Free Blog Logo",
+                    modifier = Modifier.height(40.dp)
+                )
             },
             showSearch = true,
             darkModeConfig = darkModeConfig,
@@ -1530,14 +1528,12 @@ fun NewsletterScreen(
 
     Column(modifier = Modifier) {
         TopBarWithActions(
-            title = { 
-                Text(
-                    text = "Newsletter",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = Gilroy,
-                        fontWeight = FontWeight.Bold
-                    )
-                ) 
+            title = {
+                Image(
+                    painter = painterResource(id = R.drawable.freenewsletter),
+                    contentDescription = "Free Newsletter Logo",
+                    modifier = Modifier.height(40.dp)
+                )
             },
             showSearch = true,
             darkModeConfig = darkModeConfig,
@@ -2035,7 +2031,7 @@ fun BlogFilterChip(
         selected = selected,
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) Color(0xFF734CC2) else if (isDarkMode) Color.DarkGray else Color.LightGray,
+        color = if (selected) Color(0xFF0C7A0B) else if (isDarkMode) Color.DarkGray else Color.LightGray,
         contentColor = if (selected) Color.White else if (isDarkMode) Color.White else Color.Black,
         modifier = modifier.height(32.dp)
     ) {
@@ -2466,8 +2462,8 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
     val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter, Screen.TVAdListings)
     val selectedColors = mapOf(
         Screen.Home.route to Color(0xFF128FF1),
-        Screen.Blog.route to Color(0xFF734CC2),
-        Screen.Newsletter.route to Color(0xFFDA048F),
+        Screen.Blog.route to Color(0xFF0C7A0B),
+        Screen.Newsletter.route to Color(0xFF0C7A0B),
         Screen.TVAdListings.route to Color(0xFF0050DB)
     )
 
