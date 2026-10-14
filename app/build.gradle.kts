@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26101101
-        versionName = "phcaapp-stable-26.10.11.1"
+        versionCode = 26101401
+        versionName = "phcaapp-stable-26.10.14.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -107,6 +107,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.retrofit.converter.moshi)
+    implementation(libs.moshi.kotlin)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

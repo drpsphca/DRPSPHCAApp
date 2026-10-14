@@ -1,0 +1,1504 @@
+package com.drpsphca.app.ui.screens.pbb
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.drpsphca.app.data.pbb.*
+import com.drpsphca.app.ui.theme.Gilroy
+import com.drpsphca.app.ui.viewmodel.LiveSubTab
+import com.drpsphca.app.ui.viewmodel.PbbSection
+import com.drpsphca.app.ui.viewmodel.PbbViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PbbUpdatesScreen(
+    pbbViewModel: PbbViewModel,
+    isDarkMode: Boolean,
+    onAnnouncementClick: (AnnouncementPost) -> Unit
+) {
+    val uiState by pbbViewModel.uiState.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        PbbSectionSelector(
+            selectedSection = uiState.selectedSection,
+            onSectionSelected = { pbbViewModel.selectSection(it) },
+            isDarkMode = isDarkMode
+        )
+
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { pbbViewModel.refresh() },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFFBBA00C))
+                    }
+                }
+                uiState.error != null -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = uiState.error!!,
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { pbbViewModel.refresh() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBBA00C))
+                        ) {
+                            Text("Retry", fontFamily = Gilroy, fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
+                    }
+                }
+                uiState.selectedSection == PbbSection.LIVE_UPDATES -> {
+                    PbbLiveUpdatesView(
+                        pbbViewModel = pbbViewModel,
+                        isDarkMode = isDarkMode
+                    )
+                }
+                else -> {
+                    PbbAnnouncementsView(
+                        announcements = uiState.announcements,
+                        isDarkMode = isDarkMode,
+                        onAnnouncementClick = onAnnouncementClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbSectionSelector(
+    selectedSection: PbbSection,
+    onSectionSelected: (PbbSection) -> Unit,
+    isDarkMode: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PbbFilterChip(
+            selected = selectedSection == PbbSection.LIVE_UPDATES,
+            onClick = { onSectionSelected(PbbSection.LIVE_UPDATES) },
+            label = "Live Updates",
+            isDarkMode = isDarkMode,
+            modifier = Modifier.weight(1f)
+        )
+        PbbFilterChip(
+            selected = selectedSection == PbbSection.ANNOUNCEMENTS,
+            onClick = { onSectionSelected(PbbSection.ANNOUNCEMENTS) },
+            label = "Announcements",
+            isDarkMode = isDarkMode,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun PbbFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    isDarkMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) Color(0xFFBBA00C) else if (isDarkMode) Color.DarkGray else Color.LightGray,
+        contentColor = if (selected) Color.Black else if (isDarkMode) Color.White else Color.Black,
+        modifier = modifier.height(36.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                fontFamily = Gilroy,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun PbbLiveUpdatesView(
+    pbbViewModel: PbbViewModel,
+    isDarkMode: Boolean
+) {
+    val uiState by pbbViewModel.uiState.collectAsState()
+    val seasonPack = uiState.currentSeasonPack
+    var expandedDropdown by remember { mutableStateOf(false) }
+
+    val currentSeasonLabel = uiState.availableSeasons.find { it.id == uiState.selectedSeasonId }?.label
+        ?: uiState.selectedSeasonId ?: "Select Season"
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Season Dropdown Selector
+        item {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedDropdown = true },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "PBB Season",
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 12.sp,
+                                color = if (isDarkMode) Color.LightGray else Color.Gray
+                            )
+                            Text(
+                                text = currentSeasonLabel,
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = if (isDarkMode) Color.White else Color.Black
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Season",
+                            tint = Color(0xFFBBA00C)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = expandedDropdown,
+                        onDismissRequest = { expandedDropdown = false }
+                    ) {
+                        uiState.availableSeasons.forEach { item ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = item.label,
+                                        fontFamily = Gilroy,
+                                        fontWeight = if (item.id == uiState.selectedSeasonId) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    pbbViewModel.selectSeason(item.id)
+                                    expandedDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Live Sub Tabs (Scrollable LazyRow)
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(LiveSubTab.values()) { tab ->
+                    val isSelected = uiState.selectedLiveSubTab == tab
+                    val tabLabel = when (tab) {
+                        LiveSubTab.OVERVIEW -> "Overview"
+                        LiveSubTab.HOUSEMATES -> "Housemates"
+                        LiveSubTab.NOMINATIONS -> "Nominations"
+                        LiveSubTab.WEEKLY_TASKS -> "Weekly Tasks"
+                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { pbbViewModel.selectLiveSubTab(tab) },
+                        label = {
+                            Text(
+                                text = tabLabel,
+                                fontFamily = Gilroy,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 13.sp,
+                                maxLines = 1
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFBBA00C),
+                            selectedLabelColor = Color.Black
+                        )
+                    )
+                }
+            }
+        }
+
+        // Content rendering based on selected sub-tab
+        if (seasonPack == null) {
+            item {
+                PbbComingSoonCard(isDarkMode = isDarkMode)
+            }
+        } else {
+            when (uiState.selectedLiveSubTab) {
+                LiveSubTab.OVERVIEW -> {
+                    item { PbbSeasonHeaderCard(seasonPack = seasonPack, isDarkMode = isDarkMode) }
+                    item { PbbEvictionDeskCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
+                    item { PbbLatestNominationCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
+                    item { PbbLatestWeeklyTasksCard(weeklyTasks = seasonPack.weeklyTasks, isDarkMode = isDarkMode) }
+                    item { PbbHousematesPreviewCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
+                }
+                LiveSubTab.HOUSEMATES -> {
+                    if (seasonPack.housemates.isEmpty()) {
+                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                    } else {
+                        val sortedHousemates = seasonPack.housemates.sortedWith(
+                            compareBy(nullsLast()) { it.place ?: Int.MAX_VALUE }
+                        )
+                        items(sortedHousemates) { housemate ->
+                            PbbHousemateItemCard(
+                                seasonPack = seasonPack,
+                                housemate = housemate,
+                                photoUrl = pbbViewModel.getPhotoUrl(housemate.id),
+                                isDarkMode = isDarkMode
+                            )
+                        }
+                    }
+                }
+                LiveSubTab.NOMINATIONS -> {
+                    if (seasonPack.nominationTallies.isEmpty() && seasonPack.evictions.isEmpty()) {
+                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                    } else {
+                        if (seasonPack.nominationTallies.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Nomination Tallies",
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            items(seasonPack.nominationTallies) { tally ->
+                                PbbNominationTallySectionCard(seasonPack = seasonPack, tally = tally, isDarkMode = isDarkMode)
+                            }
+                        }
+
+                        if (seasonPack.evictions.isNotEmpty()) {
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Eviction Results",
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            items(seasonPack.evictions) { eviction ->
+                                PbbEvictionResultSectionCard(seasonPack = seasonPack, eviction = eviction, isDarkMode = isDarkMode)
+                            }
+                        }
+                    }
+                }
+                LiveSubTab.WEEKLY_TASKS -> {
+                    if (seasonPack.weeklyTasks.isEmpty()) {
+                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                    } else {
+                        items(seasonPack.weeklyTasks) { task ->
+                            PbbWeeklyTaskCard(task = task, isDarkMode = isDarkMode)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HousemateAvatar(
+    photoUrl: String?,
+    contentDescription: String?,
+    size: Dp
+) {
+    if (!photoUrl.isNullOrEmpty()) {
+        AsyncImage(
+            model = photoUrl,
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(Color.Gray),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = contentDescription,
+                tint = Color.White,
+                modifier = Modifier.size(size * 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+fun PbbComingSoonCard(isDarkMode: Boolean) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = "Coming Soon",
+                tint = Color(0xFFBBA00C),
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Coming Soon",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Data for this season will be available upon official announcement.",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Normal,
+                fontSize = 14.sp,
+                color = if (isDarkMode) Color.LightGray else Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
+    val seasonInfo = seasonPack.season
+    val winnerId = seasonInfo?.winner
+    val winnerHousemate = if (!winnerId.isNullOrEmpty()) {
+        seasonPack.housemates.find { it.id == winnerId }
+    } else null
+    val winnerName = if (winnerHousemate != null) {
+        winnerHousemate.name ?: winnerHousemate.displayName ?: formatHousemateName(null, null, winnerHousemate.id)
+    } else if (!winnerId.isNullOrEmpty()) {
+        formatHousemateName(null, null, winnerId)
+    } else ""
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE8F5E9)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = seasonInfo?.title ?: "Pinoy Big Brother",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = Color(0xFF1B5E20),
+                    modifier = Modifier.weight(1f)
+                )
+
+                val statusText = statusLabel(seasonInfo?.status)
+                val statusColor = when (seasonInfo?.status?.lowercase()) {
+                    "live" -> Color(0xFF2E7D32)
+                    "finished" -> Color(0xFF0D47A1)
+                    else -> Color(0xFFE65100)
+                }
+
+                Surface(
+                    color = statusColor,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (statusText.isEmpty()) "UPCOMING" else statusText,
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val premiere = seasonInfo?.premiere ?: "TBA"
+            val finale = seasonInfo?.finale ?: "Ongoing"
+            Text(
+                text = "Schedule: $premiere — $finale",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = if (isDarkMode) Color.LightGray else Color.DarkGray
+            )
+
+            if (seasonInfo?.currentWeek != null || seasonInfo?.currentDay != null) {
+                val weekText = seasonInfo.currentWeek?.let { "Week $it" } ?: ""
+                val dayText = seasonInfo.currentDay?.let { "Day $it" } ?: ""
+                Text(
+                    text = listOf(weekText, dayText).filter { it.isNotEmpty() }.joinToString(" • "),
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFFBBA00C)
+                )
+            }
+
+            if (winnerName.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Winner: $winnerName",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF2E7D32)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbEvictionDeskCard(
+    seasonPack: SeasonPack,
+    pbbViewModel: PbbViewModel,
+    isDarkMode: Boolean
+) {
+    val votingOpen = seasonPack.season?.votingOpen == true
+    val latestEviction = seasonPack.evictions.lastOrNull()
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFFFF3E0)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFE65100),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Eviction Desk",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFFE65100)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (votingOpen && latestEviction != null && latestEviction.nominated.isNotEmpty()) {
+                Text(
+                    text = "Voting is OPEN! Nominated Housemates:",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFFC62828)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Grid of nominated housemates
+                CardGrid(items = latestEviction.nominated, columnCount = 2) { nominee ->
+                    val housemate = seasonPack.housemates.find { it.id == nominee.id }
+                    val photoUrl = nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
+                    val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                        ?: formatHousemateName(null, null, nominee.id ?: "")
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDarkMode) Color.DarkGray else Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            HousemateAvatar(
+                                photoUrl = photoUrl,
+                                contentDescription = hName,
+                                size = 48.dp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = hName,
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            if (nominee.percent != null) {
+                                Text(
+                                    text = "${nominee.percent}%",
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "No ongoing eviction voting",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
+                val winnerId = seasonPack.season?.winner
+                val winnerHousemate = if (!winnerId.isNullOrEmpty()) {
+                    seasonPack.housemates.find { it.id == winnerId }
+                } else null
+                val winnerName = if (winnerHousemate != null) {
+                    winnerHousemate.name ?: winnerHousemate.displayName ?: formatHousemateName(null, null, winnerHousemate.id)
+                } else if (!winnerId.isNullOrEmpty()) {
+                    formatHousemateName(null, null, winnerId)
+                } else ""
+
+                if (winnerName.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Winner: $winnerName",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF2E7D32)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbLatestNominationCard(
+    seasonPack: SeasonPack,
+    pbbViewModel: PbbViewModel,
+    isDarkMode: Boolean
+) {
+    val lastTally = seasonPack.nominationTallies.lastOrNull() ?: return
+    // Filter entries where state == "nominated"
+    val nominatedEntries = lastTally.entries.filter { it.state.equals("nominated", ignoreCase = true) }
+    if (nominatedEntries.isEmpty()) return
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE1F5FE)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Latest Nomination Tally: ${lastTally.title ?: "Week ${lastTally.week ?: 1}"}",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF0277BD)
+            )
+
+            if (!lastTally.note.isNullOrEmpty()) {
+                Text(
+                    text = lastTally.note,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CardGrid(items = nominatedEntries, columnCount = 2) { entry ->
+                val housemate = seasonPack.housemates.find { it.id == entry.id }
+                val photoUrl = entry.id?.let { pbbViewModel.getPhotoUrl(it) }
+                val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                    ?: formatHousemateName(entry.name, null, entry.id ?: "")
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HousemateAvatar(
+                            photoUrl = photoUrl,
+                            contentDescription = hName,
+                            size = 48.dp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hName,
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        if (!entry.label.isNullOrEmpty()) {
+                            Text(
+                                text = entry.label,
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp,
+                                color = Color(0xFF0277BD)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val stateColor = getNominationStateColor(entry.state)
+                        Surface(
+                            color = stateColor,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = statusLabel(entry.state).ifEmpty { "NOMINATED" },
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbLatestWeeklyTasksCard(
+    weeklyTasks: List<WeeklyTask>,
+    isDarkMode: Boolean
+) {
+    val latestTasks = weeklyTasks.takeLast(4)
+    if (latestTasks.isEmpty()) return
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF3E5F5)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Weekly Tasks",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFF6A1B9A)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            latestTasks.forEach { task ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = task.title ?: "Task Week ${task.week ?: ""}",
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (task.week != null) {
+                            Text(
+                                text = "Week ${task.week}",
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 11.sp,
+                                color = if (isDarkMode) Color.LightGray else Color.Gray
+                            )
+                        }
+                    }
+                    val statusBg = getStatusColor(task.status)
+                    Surface(
+                        color = statusBg,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = statusLabel(task.status).ifEmpty { "PENDING" },
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbHousematesPreviewCard(
+    seasonPack: SeasonPack,
+    pbbViewModel: PbbViewModel,
+    isDarkMode: Boolean
+) {
+    val previewHousemates = seasonPack.housemates.take(6)
+    if (previewHousemates.isEmpty()) return
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Housemates",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = "See All",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color(0xFFBBA00C),
+                    modifier = Modifier.clickable { pbbViewModel.selectLiveSubTab(LiveSubTab.HOUSEMATES) }
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(previewHousemates) { hm ->
+                    val photoUrl = pbbViewModel.getPhotoUrl(hm.id)
+                    val hName = formatHousemateName(hm.name, hm.displayName, hm.id)
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(72.dp)
+                    ) {
+                        HousemateAvatar(
+                            photoUrl = photoUrl,
+                            contentDescription = hName,
+                            size = 64.dp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hName,
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        if (!hm.moniker.isNullOrEmpty()) {
+                            Text(
+                                text = hm.moniker,
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (isDarkMode) Color.LightGray else Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbHousemateItemCard(
+    seasonPack: SeasonPack,
+    housemate: Housemate,
+    photoUrl: String?,
+    isDarkMode: Boolean
+) {
+    val fullName = housemate.name ?: formatHousemateFullName(null, housemate.displayName, housemate.id)
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF9F9F9)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HousemateAvatar(
+                photoUrl = photoUrl,
+                contentDescription = fullName,
+                size = 64.dp
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = fullName,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                if (!housemate.moniker.isNullOrEmpty()) {
+                    Text(
+                        text = housemate.moniker,
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = Color(0xFFBBA00C)
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                if (!housemate.type.isNullOrEmpty()) {
+                    Text(
+                        text = "Type: ${housemate.type}",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 11.sp,
+                        color = if (isDarkMode) Color.LightGray else Color.Gray
+                    )
+                }
+                val daysInfo = listOfNotNull(
+                    housemate.dayEntered?.let { "Entered: Day $it" },
+                    housemate.dayExited?.let { "Exited: Day $it" }
+                ).joinToString(" • ")
+                if (daysInfo.isNotEmpty()) {
+                    Text(
+                        text = daysInfo,
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 11.sp,
+                        color = if (isDarkMode) Color.LightGray else Color.Gray
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                val statusText = statusLabel(housemate.status)
+                val statusBg = getStatusColor(housemate.status)
+                Surface(
+                    color = statusBg,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = statusText.ifEmpty { "ACTIVE" },
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+                if (housemate.place != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Place #${housemate.place}",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color(0xFFBBA00C)
+                    )
+                }
+                if (housemate.nominationPoints != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${housemate.nominationPoints} pts",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbNominationTallySectionCard(
+    seasonPack: SeasonPack,
+    tally: NominationTally,
+    isDarkMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF5F5F5)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = tally.title ?: "Week ${tally.week ?: ""}",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            val subInfo = listOfNotNull(
+                tally.week?.let { "Week $it" },
+                tally.method?.let { "Method: $it" }
+            ).joinToString(" • ")
+            if (subInfo.isNotEmpty()) {
+                Text(
+                    text = subInfo,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = Color(0xFFBBA00C)
+                )
+            }
+            if (!tally.note.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = tally.note,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp,
+                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CardGrid(items = tally.entries, columnCount = 2) { entry ->
+                val housemate = seasonPack.housemates.find { it.id == entry.id }
+                val photoUrl = entry.id?.let { pbbViewModelPhotoUrl(seasonPack, it) }
+                val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                    ?: formatHousemateName(entry.name, null, entry.id ?: "")
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HousemateAvatar(
+                            photoUrl = photoUrl,
+                            contentDescription = hName,
+                            size = 48.dp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hName,
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        if (!entry.label.isNullOrEmpty()) {
+                            Text(
+                                text = entry.label,
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp,
+                                color = Color(0xFF0277BD)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val stateColor = getNominationStateColor(entry.state)
+                        Surface(
+                            color = stateColor,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = statusLabel(entry.state).ifEmpty { "NOMINATED" },
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbEvictionResultSectionCard(
+    seasonPack: SeasonPack,
+    eviction: Eviction,
+    isDarkMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFFFEBEE)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = "Eviction: Week ${eviction.week ?: ""} (Day ${eviction.day ?: ""})",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = Color(0xFFC62828)
+            )
+            val subInfo = listOfNotNull(
+                eviction.date,
+                eviction.voteType?.let { "Vote Type: $it" }
+            ).joinToString(" • ")
+            if (subInfo.isNotEmpty()) {
+                Text(
+                    text = subInfo,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = if (isDarkMode) Color.LightGray else Color.DarkGray
+                )
+            }
+            if (!eviction.note.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = eviction.note,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp,
+                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            CardGrid(items = eviction.nominated, columnCount = 2) { nominee ->
+                val housemate = seasonPack.housemates.find { it.id == nominee.id }
+                val photoUrl = nominee.id?.let { pbbViewModelPhotoUrl(seasonPack, it) }
+                val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                    ?: formatHousemateName(null, null, nominee.id ?: "")
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        HousemateAvatar(
+                            photoUrl = photoUrl,
+                            contentDescription = hName,
+                            size = 48.dp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hName,
+                            fontFamily = Gilroy,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        if (nominee.percent != null) {
+                            Text(
+                                text = "${nominee.percent}%",
+                                fontFamily = Gilroy,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                        if (!nominee.result.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val resColor = getEvictionResultColor(nominee.result)
+                            Surface(
+                                color = resColor,
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = statusLabel(nominee.result),
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbWeeklyTaskCard(
+    task: WeeklyTask,
+    isDarkMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF5F5F5)
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = task.title ?: "Weekly Task",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                val statusText = statusLabel(task.status)
+                val statusBg = getStatusColor(task.status)
+                Surface(
+                    color = statusBg,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = statusText.ifEmpty { "PENDING" },
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (task.week != null || task.day != null) {
+                Text(
+                    text = listOfNotNull(task.week?.let { "Week $it" }, task.day?.let { "Day $it" }).joinToString(" • "),
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = Color(0xFFBBA00C)
+                )
+            }
+
+            if (!task.summary.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = task.summary,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 13.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbAnnouncementsView(
+    announcements: List<AnnouncementPost>,
+    isDarkMode: Boolean,
+    onAnnouncementClick: (AnnouncementPost) -> Unit
+) {
+    if (announcements.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No announcements available.",
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(announcements) { post ->
+                PbbAnnouncementCard(
+                    post = post,
+                    isDarkMode = isDarkMode,
+                    onClick = { onAnnouncementClick(post) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PbbAnnouncementCard(
+    post: AnnouncementPost,
+    isDarkMode: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
+        )
+    ) {
+        Column {
+            if (!post.featuredImage.isNullOrEmpty()) {
+                AsyncImage(
+                    model = post.featuredImage,
+                    contentDescription = post.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = post.title ?: "PBB Announcement",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF025CA1)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                if (!post.date.isNullOrEmpty()) {
+                    Text(
+                        text = formatPbbPublishedDate(post.date),
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.sp,
+                        color = if (isDarkMode) Color.LightGray else Color(0xFF666666)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                if (!post.excerpt.isNullOrEmpty()) {
+                    Text(
+                        text = post.excerpt,
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun <T> CardGrid(
+    items: List<T>,
+    columnCount: Int = 2,
+    content: @Composable (T) -> Unit
+) {
+    val rows = items.chunked(columnCount)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { item ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        content(item)
+                    }
+                }
+                repeat(columnCount - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+fun pbbViewModelPhotoUrl(seasonPack: SeasonPack, id: String): String? {
+    val seasonId = seasonPack.season?.id ?: ""
+    val file = seasonPack.photos[id]
+    return if (file.isNullOrBlank()) {
+        null
+    } else if (file.startsWith("http")) {
+        file
+    } else {
+        "https://pbbupdates.drpsphca.com/assets/img/$seasonId/$file"
+    }
+}
+
+fun formatHousemateName(name: String?, displayName: String?, id: String): String {
+    if (!displayName.isNullOrBlank()) return displayName
+    if (!name.isNullOrBlank()) return name
+    if (id.isBlank()) return "Housemate"
+    return id.replace('-', ' ').split(' ').joinToString(" ") { word ->
+        word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+    }
+}
+
+fun formatHousemateFullName(name: String?, displayName: String?, id: String): String {
+    if (!name.isNullOrBlank()) return name
+    if (!displayName.isNullOrBlank()) return displayName
+    if (id.isBlank()) return "Housemate"
+    return id.replace('-', ' ').split(' ').joinToString(" ") { word ->
+        word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+    }
+}
+
+fun statusLabel(status: String?): String {
+    return status.orEmpty()
+        .replace('_', ' ')
+        .trim()
+        .uppercase(Locale.ROOT)
+}
+
+fun formatPbbPublishedDate(rawDate: String?): String {
+    if (rawDate.isNullOrBlank()) return ""
+    val cleanDateStr = rawDate.take(10)
+
+    val inputFormats = listOf(
+        SimpleDateFormat("yyyy-MM-dd", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+        SimpleDateFormat("MMM dd, yyyy", Locale.US),
+        SimpleDateFormat("MMMM dd, yyyy", Locale.US)
+    )
+
+    for (format in inputFormats) {
+        try {
+            val date = format.parse(cleanDateStr) ?: format.parse(rawDate)
+            if (date != null) {
+                val outputFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
+                return outputFormat.format(date).uppercase(Locale.ROOT)
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    return rawDate.uppercase(Locale.ROOT)
+}
+
+fun getStatusColor(status: String?): Color {
+    return when (status?.lowercase()) {
+        "safe", "saved", "passed", "success", "winner" -> Color(0xFF2E7D32) // safe green
+        "nominated", "yellow", "pending" -> Color(0xFFF57F17) // nominated yellow
+        "evicted", "red", "failed" -> Color(0xFFC62828) // evicted red
+        "not_nominated", "blue" -> Color(0xFF0D47A1) // blue
+        else -> Color(0xFF0277BD)
+    }
+}
+
+fun getNominationStateColor(state: String?): Color {
+    return when (state?.lowercase()) {
+        "nominated" -> Color(0xFFC62828) // red
+        "not_nominated" -> Color(0xFF0D47A1) // blue
+        "ineligible" -> Color(0xFF757575) // gray
+        else -> Color(0xFF0277BD)
+    }
+}
+
+fun getEvictionResultColor(result: String?): Color {
+    return when (result?.lowercase()) {
+        "saved" -> Color(0xFF2E7D32) // green
+        "evicted" -> Color(0xFFC62828) // red
+        "winner" -> Color(0xFF0D47A1) // blue
+        else -> Color(0xFF0277BD)
+    }
+}

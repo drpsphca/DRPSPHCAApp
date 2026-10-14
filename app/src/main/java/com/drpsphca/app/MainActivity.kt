@@ -138,13 +138,16 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
 import com.drpsphca.app.BuildConfig
+import com.drpsphca.app.data.pbb.AnnouncementPost
 import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.rememberWindowSizeClass
 import com.drpsphca.app.ui.screens.PostDetailScreen
+import com.drpsphca.app.ui.screens.pbb.PbbUpdatesScreen
 import com.drpsphca.app.ui.theme.DRPSPHCATheme
 import com.drpsphca.app.ui.theme.Gilroy
 import com.drpsphca.app.ui.theme.NotoSerif
 import com.drpsphca.app.ui.viewmodel.NewsletterUiState
+import com.drpsphca.app.ui.viewmodel.PbbViewModel
 import com.drpsphca.app.ui.viewmodel.PostDetailUiModel
 import com.drpsphca.app.ui.viewmodel.PostDetailUiState
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
@@ -411,6 +414,7 @@ fun TopBarWithActions(
     title: @Composable () -> Unit,
     showSearch: Boolean = false,
     showTvalLogo: Boolean = false,
+    showPbbLogo: Boolean = false,
     darkModeConfig: WordPressViewModel.DarkModeConfig = WordPressViewModel.DarkModeConfig.AUTO,
     notificationsEnabled: Boolean = false,
     onDarkModeToggle: () -> Unit = {},
@@ -431,6 +435,12 @@ fun TopBarWithActions(
                 Image(
                     painter = painterResource(id = R.drawable.tvallogo),
                     contentDescription = "TVAL Logo",
+                    modifier = Modifier.height(40.dp)
+                )
+            } else if (showPbbLogo) {
+                Image(
+                    painter = painterResource(id = R.drawable.pbbupd),
+                    contentDescription = "PBB Updates Logo",
                     modifier = Modifier.height(40.dp)
                 )
             } else {
@@ -702,6 +712,8 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     }
     val navController = rememberNavController()
     var isFullscreen by remember { mutableStateOf(false) }
+    val pbbViewModel: PbbViewModel = viewModel()
+    var selectedPbbAnnouncement by remember { mutableStateOf<AnnouncementPost?>(null) }
 
     val navigateToPostId by wordPressViewModel.navigateToPostId.collectAsState()
     LaunchedEffect(navigateToPostId) {
@@ -713,7 +725,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route, Screen.TVAdListings.route)
+    val bottomBarRoutes = setOf(Screen.Home.route, Screen.Blog.route, Screen.Newsletter.route, Screen.TVAdListings.route, Screen.PbbUpdates.route)
     val windowSize = rememberWindowSizeClass()
 
     Scaffold(
@@ -859,6 +871,46 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     onRateAppClick = {
                         requestReview(context)
                     }
+                )
+            }
+            composable("pbb_updates") {
+                PbbUpdatesMainScreen(
+                    navController = navController,
+                    pbbViewModel = pbbViewModel,
+                    wordPressViewModel = wordPressViewModel,
+                    isDarkMode = isDarkMode,
+                    notificationsEnabled = notificationsEnabled,
+                    onNotificationsToggle = {
+                        val activity = context as? MainActivity
+                        if (!notificationsEnabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                activity?.requestNotificationPermission()
+                            } else {
+                                wordPressViewModel.setNotificationsEnabled(true)
+                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
+                            }
+                        } else {
+                            wordPressViewModel.setNotificationsEnabled(false)
+                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
+                        }
+                    },
+                    onContactUsClick = {
+                        navController.navigate("contactus")
+                    },
+                    onRateAppClick = {
+                        requestReview(context)
+                    },
+                    onAnnouncementClick = { announcement ->
+                        selectedPbbAnnouncement = announcement
+                        navController.navigate("pbb_announcement_detail")
+                    }
+                )
+            }
+            composable("pbb_announcement_detail") {
+                PbbAnnouncementDetailRoute(
+                    announcement = selectedPbbAnnouncement,
+                    navController = navController,
+                    isDarkMode = isDarkMode
                 )
             }
             composable(
@@ -1990,6 +2042,119 @@ fun TVAdListingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PbbUpdatesMainScreen(
+    navController: NavController,
+    pbbViewModel: PbbViewModel,
+    wordPressViewModel: WordPressViewModel,
+    isDarkMode: Boolean,
+    notificationsEnabled: Boolean,
+    onNotificationsToggle: () -> Unit,
+    onContactUsClick: () -> Unit,
+    onRateAppClick: () -> Unit,
+    onAnnouncementClick: (AnnouncementPost) -> Unit
+) {
+    val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
+
+    Column(modifier = Modifier) {
+        TopBarWithActions(
+            title = {},
+            showPbbLogo = true,
+            showSearch = false,
+            darkModeConfig = darkModeConfig,
+            notificationsEnabled = notificationsEnabled,
+            onDarkModeToggle = { wordPressViewModel.toggleDarkMode() },
+            onNotificationsToggle = onNotificationsToggle,
+            onBookmarksClick = { navController.navigate("bookmarks") },
+            onDownloadsClick = { navController.navigate("downloads") },
+            onContactUsClick = onContactUsClick,
+            onRateAppClick = onRateAppClick
+        )
+
+        PbbUpdatesScreen(
+            pbbViewModel = pbbViewModel,
+            isDarkMode = isDarkMode,
+            onAnnouncementClick = onAnnouncementClick
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PbbAnnouncementDetailRoute(
+    announcement: AnnouncementPost?,
+    navController: NavController,
+    isDarkMode: Boolean
+) {
+    if (announcement == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Announcement not found.", fontFamily = Gilroy, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+
+    val context = LocalContext.current
+    val formattedDateStr = remember(announcement.date) {
+        com.drpsphca.app.ui.screens.pbb.formatPbbPublishedDate(announcement.date)
+    }
+
+    val detailUiModel = remember(announcement, formattedDateStr) {
+        PostDetailUiModel(
+            id = announcement.url.hashCode(),
+            formattedDate = formattedDateStr,
+            plainTitle = announcement.title ?: "PBB Announcement",
+            plainExcerpt = announcement.excerpt ?: "",
+            content = announcement.contentHtml ?: announcement.contentText ?: "",
+            imageUrl = announcement.featuredImage,
+            tags = emptyList(),
+            link = announcement.url ?: "",
+            category = "PBB Updates"
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "PBB Announcement",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.phcaapp_left),
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        sharePost(context, detailUiModel.plainTitle, detailUiModel.link)
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.phcaapp_share),
+                            contentDescription = "Share"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
+            PostDetailScreen(
+                post = detailUiModel,
+                isDarkMode = isDarkMode,
+                isOffline = !isOnline(context)
+            )
+        }
+    }
+}
+
 @Composable
 fun BlogSectionSelector(
     selectedSection: WordPressViewModel.BlogSection,
@@ -2455,16 +2620,18 @@ sealed class Screen(val route: String, val label: String, @param:DrawableRes val
     object Blog : Screen("blog", "Blog", R.drawable.phcaapp_blog)
     object Newsletter : Screen("newsletter", "Newsletter", R.drawable.phcaapp_newsletter)
     object TVAdListings : Screen("tval", "TVAL", R.drawable.phcaapp_tval)
+    object PbbUpdates : Screen("pbb_updates", "PBB", R.drawable.phcaapp_pbb)
 }
 
 @Composable
 fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
-    val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter, Screen.TVAdListings)
+    val items = listOf(Screen.Home, Screen.Blog, Screen.Newsletter, Screen.TVAdListings, Screen.PbbUpdates)
     val selectedColors = mapOf(
         Screen.Home.route to Color(0xFF128FF1),
         Screen.Blog.route to Color(0xFF0C7A0B),
         Screen.Newsletter.route to Color(0xFF0C7A0B),
-        Screen.TVAdListings.route to Color(0xFF0050DB)
+        Screen.TVAdListings.route to Color(0xFF0050DB),
+        Screen.PbbUpdates.route to Color(0xFFBBA00C)
     )
 
     NavigationBar(
@@ -2508,7 +2675,7 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
                         painter = painterResource(id = screen.icon),
                         contentDescription = screen.label,
                         tint = tint,
-                        modifier = Modifier.padding(bottom = 4.dp)
+                        modifier = Modifier.height(32.dp).padding(bottom = 0.dp)
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
