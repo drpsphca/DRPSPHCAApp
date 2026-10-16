@@ -324,7 +324,6 @@ fun PbbLiveUpdatesView(
                             )
                             items(sortedHousemates) { housemate ->
                                 PbbHousemateItemCard(
-                                    seasonPack = seasonPack,
                                     housemate = housemate,
                                     photoUrl = pbbViewModel.getPhotoUrl(housemate.id),
                                     isDarkMode = isDarkMode
@@ -343,6 +342,7 @@ fun PbbLiveUpdatesView(
                                         fontFamily = Gilroy,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 18.sp,
+                                        color = if (isDarkMode) Color.White else Color.Black,
                                         modifier = Modifier.padding(vertical = 4.dp)
                                     )
                                 }
@@ -366,6 +366,7 @@ fun PbbLiveUpdatesView(
                                         fontFamily = Gilroy,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 18.sp,
+                                        color = if (isDarkMode) Color.White else Color.Black,
                                         modifier = Modifier.padding(vertical = 4.dp)
                                     )
                                 }
@@ -455,7 +456,8 @@ fun PbbComingSoonCard(isDarkMode: Boolean) {
                 text = "Coming Soon",
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
+                fontSize = 20.sp,
+                color = if (isDarkMode) Color.White else Color.Black
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -478,14 +480,14 @@ fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
         seasonPack.housemates.find { it.id == winnerId }
     } else null
     val winnerName = if (winnerHousemate != null) {
-        winnerHousemate.name ?: winnerHousemate.displayName ?: formatHousemateName(null, null, winnerHousemate.id)
+        formatHousemateFullName(winnerHousemate.name, winnerHousemate.displayName, winnerHousemate.id)
     } else if (!winnerId.isNullOrEmpty()) {
-        formatHousemateName(null, null, winnerId)
+        formatHousemateFullName(null, null, winnerId)
     } else ""
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE8F5E9)
+            containerColor = if (isDarkMode) Color(0xFF1E2D22) else Color(0xFFE8F5E9)
         ),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
@@ -501,7 +503,7 @@ fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = Color(0xFF1B5E20),
+                    color = if (isDarkMode) Color(0xFF81C784) else Color(0xFF1B5E20),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -536,7 +538,7 @@ fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
-                color = if (isDarkMode) Color.LightGray else Color.DarkGray
+                color = if (isDarkMode) Color.White else Color.DarkGray
             )
 
             if (seasonInfo?.currentWeek != null || seasonInfo?.currentDay != null) {
@@ -558,7 +560,7 @@ fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = Color(0xFF2E7D32)
+                    color = if (isDarkMode) Color(0xFF81C784) else Color(0xFF2E7D32)
                 )
             }
         }
@@ -575,6 +577,8 @@ fun PbbEvictionDeskCard(
 ) {
     val votingOpen = seasonPack.season?.votingOpen == true
     val latestEviction = seasonPack.evictions.lastOrNull()
+    val deskState = latestEviction?.deskState?.lowercase(Locale.ROOT) ?: ""
+    val placeholderPhoto = "https://pbbupdates.drpsphca.com/assets/img/misc/misc_hm.png"
 
     Card(
         colors = CardDefaults.cardColors(
@@ -588,7 +592,7 @@ fun PbbEvictionDeskCard(
                 Icon(
                     imageVector = Icons.Default.Star,
                     contentDescription = null,
-                    tint = Color(0xFFE65100),
+                    tint = if (isDarkMode) Color(0xFFFFB74D) else Color(0xFFE65100),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -597,33 +601,70 @@ fun PbbEvictionDeskCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = Color(0xFFE65100)
+                    color = if (isDarkMode) Color(0xFFFFB74D) else Color(0xFFE65100)
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (votingOpen && latestEviction != null && latestEviction.nominated.isNotEmpty()) {
+            val hasEvictionNominees = latestEviction != null && latestEviction.nominated.isNotEmpty()
+
+            if (hasEvictionNominees && (votingOpen || deskState.isNotEmpty())) {
+                val sectionTitle = when (deskState) {
+                    "closed_revealed" -> "Voting is CLOSED. Final votes tally:"
+                    else -> "Voting is OPEN! Current vote standings:"
+                }
+
                 Text(
-                    text = "Voting is OPEN! Nominated Housemates:",
+                    text = sectionTitle,
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = Color(0xFFC62828)
+                    color = if (isDarkMode) Color(0xFFFF8A80) else Color(0xFFC62828)
                 )
+
+                if ((deskState == "partial" || deskState == "eviction_night") && !latestEviction.resultsAsOf.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Voting is OPEN! Voting results as of ${latestEviction.resultsAsOf}:",
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = if (isDarkMode) Color(0xFFE0E0E0) else Color(0xFF222222)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 CardGrid(items = latestEviction.nominated, columnCount = gridColumns) { nominee ->
                     val housemate = seasonPack.housemates.find { it.id == nominee.id }
-                    val photoUrl = nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
-                    val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
-                        ?: formatHousemateName(null, null, nominee.id ?: "")
+
+                    val photoUrl = if (deskState == "closed_revealed") {
+                        nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
+                    } else {
+                        placeholderPhoto
+                    }
+
+                    val name = if (deskState == "closed_revealed") {
+                        housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                            ?: formatHousemateName(null, null, nominee.id ?: "")
+                    } else {
+                        nominee.label?.ifBlank { null } ?: "Housemate"
+                    }
+
+                    val percentText = if (deskState == "started") {
+                        "0.00%"
+                    } else {
+                        formatEvictionPercent(nominee.percent)
+                    }
+
+                    val resultText = if (deskState == "closed_revealed") nominee.result else null
 
                     EnlargedEvictionNomineeCard(
                         photoUrl = photoUrl,
-                        name = hName,
-                        percent = nominee.percent,
-                        result = nominee.result,
+                        name = name,
+                        percentText = percentText,
+                        result = resultText,
                         avatarSize = avatarSize,
                         isDarkMode = isDarkMode
                     )
@@ -633,16 +674,17 @@ fun PbbEvictionDeskCard(
                     text = "No ongoing eviction voting",
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    color = if (isDarkMode) Color.White else Color(0xFF222222)
                 )
                 val winnerId = seasonPack.season?.winner
                 val winnerHousemate = if (!winnerId.isNullOrEmpty()) {
                     seasonPack.housemates.find { it.id == winnerId }
                 } else null
                 val winnerName = if (winnerHousemate != null) {
-                    winnerHousemate.name ?: winnerHousemate.displayName ?: formatHousemateName(null, null, winnerHousemate.id)
+                    formatHousemateFullName(winnerHousemate.name, winnerHousemate.displayName, winnerHousemate.id)
                 } else if (!winnerId.isNullOrEmpty()) {
-                    formatHousemateName(null, null, winnerId)
+                    formatHousemateFullName(null, null, winnerId)
                 } else ""
 
                 if (winnerName.isNotEmpty()) {
@@ -652,7 +694,7 @@ fun PbbEvictionDeskCard(
                         fontFamily = Gilroy,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFF2E7D32)
+                        color = if (isDarkMode) Color(0xFF81C784) else Color(0xFF2E7D32)
                     )
                 }
             }
@@ -686,7 +728,7 @@ fun PbbLatestNominationCard(
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color(0xFF0277BD)
+                color = if (isDarkMode) Color(0xFF81D4FA) else Color(0xFF0277BD)
             )
 
             if (!lastTally.note.isNullOrEmpty()) {
@@ -695,7 +737,7 @@ fun PbbLatestNominationCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
-                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                    color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF555555)
                 )
             }
 
@@ -741,7 +783,7 @@ fun PbbLatestWeeklyTasksCard(
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color(0xFF6A1B9A)
+                color = if (isDarkMode) Color(0xFFCE93D8) else Color(0xFF6A1B9A)
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -757,6 +799,7 @@ fun PbbLatestWeeklyTasksCard(
                             fontFamily = Gilroy,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
+                            color = if (isDarkMode) Color.White else Color.Black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -766,7 +809,7 @@ fun PbbLatestWeeklyTasksCard(
                                 fontFamily = Gilroy,
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 11.sp,
-                                color = if (isDarkMode) Color.LightGray else Color.Gray
+                                color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF555555)
                             )
                         }
                     }
@@ -796,7 +839,6 @@ fun PbbHousematesPreviewCard(
     pbbViewModel: PbbViewModel,
     isDarkMode: Boolean
 ) {
-    // Requirement 2: Show every housemate from the selected season, not a preview of 6
     val allHousemates = seasonPack.housemates
     if (allHousemates.isEmpty()) return
 
@@ -817,7 +859,8 @@ fun PbbHousematesPreviewCard(
                     text = "Housemates",
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = if (isDarkMode) Color.White else Color.Black
                 )
                 Text(
                     text = "See Details",
@@ -850,6 +893,7 @@ fun PbbHousematesPreviewCard(
                             fontFamily = Gilroy,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
+                            color = if (isDarkMode) Color.White else Color.Black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
@@ -862,7 +906,7 @@ fun PbbHousematesPreviewCard(
                                 fontSize = 10.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (isDarkMode) Color.LightGray else Color.Gray,
+                                color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF555555),
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -875,17 +919,15 @@ fun PbbHousematesPreviewCard(
 
 @Composable
 fun PbbHousemateItemCard(
-    seasonPack: SeasonPack,
     housemate: Housemate,
     photoUrl: String?,
     isDarkMode: Boolean
 ) {
-    // Housemates tab title: housemate.name (full name)
     val fullName = housemate.name ?: formatHousemateFullName(null, housemate.displayName, housemate.id)
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF9F9F9)
+            containerColor = if (isDarkMode) Color(0xFF262626) else Color(0xFFF9F9F9)
         ),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
@@ -907,7 +949,8 @@ fun PbbHousemateItemCard(
                     text = fullName,
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = if (isDarkMode) Color.White else Color.Black
                 )
                 if (!housemate.moniker.isNullOrEmpty()) {
                     Text(
@@ -925,7 +968,7 @@ fun PbbHousemateItemCard(
                         fontFamily = Gilroy,
                         fontWeight = FontWeight.Normal,
                         fontSize = 11.sp,
-                        color = if (isDarkMode) Color.LightGray else Color.Gray
+                        color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF666666)
                     )
                 }
                 val daysInfo = listOfNotNull(
@@ -938,7 +981,7 @@ fun PbbHousemateItemCard(
                         fontFamily = Gilroy,
                         fontWeight = FontWeight.Normal,
                         fontSize = 11.sp,
-                        color = if (isDarkMode) Color.LightGray else Color.Gray
+                        color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF666666)
                     )
                 }
             }
@@ -975,7 +1018,8 @@ fun PbbHousemateItemCard(
                         text = "${housemate.nominationPoints} pts",
                         fontFamily = Gilroy,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        color = if (isDarkMode) Color.White else Color.Black
                     )
                 }
             }
@@ -1004,7 +1048,8 @@ fun PbbNominationTallySectionCard(
                 text = tally.title ?: "Week ${tally.week ?: ""}",
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                color = if (isDarkMode) Color.White else Color.Black
             )
             val subInfo = listOfNotNull(
                 tally.week?.let { "Week $it" },
@@ -1026,7 +1071,7 @@ fun PbbNominationTallySectionCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Normal,
                     fontSize = 11.sp,
-                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                    color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF555555)
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -1059,6 +1104,9 @@ fun PbbEvictionResultSectionCard(
     avatarSize: Dp,
     isDarkMode: Boolean
 ) {
+    val deskState = eviction.deskState?.lowercase(Locale.ROOT) ?: ""
+    val placeholderPhoto = "https://pbbupdates.drpsphca.com/assets/img/misc/misc_hm.png"
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFFFEBEE)
@@ -1072,11 +1120,12 @@ fun PbbEvictionResultSectionCard(
                 fontFamily = Gilroy,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color(0xFFC62828)
+                color = if (isDarkMode) Color(0xFFFF8A80) else Color(0xFFC62828)
             )
             val subInfo = listOfNotNull(
                 eviction.date,
-                eviction.voteType?.let { "Vote Type: $it" }
+                eviction.voteType?.let { "Vote Type: $it" },
+                eviction.resultsAsOf?.let { "Results as of $it" }
             ).joinToString(" • ")
             if (subInfo.isNotEmpty()) {
                 Text(
@@ -1084,7 +1133,7 @@ fun PbbEvictionResultSectionCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
-                    color = if (isDarkMode) Color.LightGray else Color.DarkGray
+                    color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF444444)
                 )
             }
             if (!eviction.note.isNullOrEmpty()) {
@@ -1094,21 +1143,37 @@ fun PbbEvictionResultSectionCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Normal,
                     fontSize = 11.sp,
-                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                    color = if (isDarkMode) Color(0xFFCCCCCC) else Color(0xFF555555)
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
 
             CardGrid(items = eviction.nominated, columnCount = gridColumns) { nominee ->
                 val housemate = seasonPack.housemates.find { it.id == nominee.id }
-                val photoUrl = nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
-                val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
-                    ?: formatHousemateName(null, null, nominee.id ?: "")
+
+                val photoUrl = if (deskState == "closed_revealed" || deskState.isEmpty()) {
+                    nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
+                } else {
+                    placeholderPhoto
+                }
+
+                val name = if (deskState.isNotEmpty() && deskState != "closed_revealed") {
+                    nominee.label?.ifBlank { null } ?: "Housemate"
+                } else {
+                    housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
+                        ?: formatHousemateName(null, null, nominee.id ?: "")
+                }
+
+                val percentText = if (deskState == "started") {
+                    "0.00%"
+                } else {
+                    formatEvictionPercent(nominee.percent)
+                }
 
                 EnlargedEvictionNomineeCard(
                     photoUrl = photoUrl,
-                    name = hName,
-                    percent = nominee.percent,
+                    name = name,
+                    percentText = percentText,
                     result = nominee.result,
                     avatarSize = avatarSize,
                     isDarkMode = isDarkMode
@@ -1127,9 +1192,13 @@ fun EnlargedNominationEntryCard(
     avatarSize: Dp,
     isDarkMode: Boolean
 ) {
+    val cardColor = if (isDarkMode) Color(0xFF262626) else Color.White
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val labelColor = if (isDarkMode) Color(0xFF81D4FA) else Color(0xFF0277BD)
+
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isDarkMode) Color.DarkGray else Color.White
+            containerColor = cardColor
         ),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
@@ -1143,16 +1212,19 @@ fun EnlargedNominationEntryCard(
                 contentDescription = name,
                 size = avatarSize
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = name,
-                fontFamily = Gilroy,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            if (name.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = name,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
             if (!label.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -1160,7 +1232,7 @@ fun EnlargedNominationEntryCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
-                    color = Color(0xFF0277BD)
+                    color = labelColor
                 )
             }
             if (!state.isNullOrEmpty()) {
@@ -1188,14 +1260,18 @@ fun EnlargedNominationEntryCard(
 fun EnlargedEvictionNomineeCard(
     photoUrl: String?,
     name: String,
-    percent: Double?,
+    percentText: String,
     result: String?,
     avatarSize: Dp,
     isDarkMode: Boolean
 ) {
+    val cardColor = if (isDarkMode) Color(0xFF262626) else Color.White
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val percentColor = if (isDarkMode) Color(0xFF81C784) else Color(0xFF2E7D32)
+
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isDarkMode) Color.DarkGray else Color.White
+            containerColor = cardColor
         ),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
@@ -1209,24 +1285,27 @@ fun EnlargedEvictionNomineeCard(
                 contentDescription = name,
                 size = avatarSize
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = name,
-                fontFamily = Gilroy,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-            if (percent != null) {
+            if (name.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = name,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if (percentText.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${percent}%",
+                    text = percentText,
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = Color(0xFF2E7D32)
+                    color = percentColor
                 )
             }
             if (!result.isNullOrEmpty()) {
@@ -1273,6 +1352,7 @@ fun PbbWeeklyTaskCard(
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
+                    color = if (isDarkMode) Color.White else Color.Black,
                     modifier = Modifier.weight(1f)
                 )
                 val statusText = statusLabel(task.status)
@@ -1308,7 +1388,8 @@ fun PbbWeeklyTaskCard(
                     text = task.summary,
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Normal,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    color = if (isDarkMode) Color(0xFFE0E0E0) else Color(0xFF333333)
                 )
             }
         }
@@ -1328,7 +1409,8 @@ fun PbbAnnouncementsView(
             Text(
                 text = "No announcements available.",
                 fontFamily = Gilroy,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = if (isDarkMode) Color.White else Color.Black
             )
         }
     } else {
@@ -1432,6 +1514,14 @@ fun statusLabel(status: String?): String {
         .replace('_', ' ')
         .trim()
         .uppercase(Locale.ROOT)
+}
+
+fun formatEvictionPercent(percent: Double?): String {
+    return if (percent != null) {
+        "%.1f%%".format(Locale.US, percent)
+    } else {
+        "0.00%"
+    }
 }
 
 fun formatCardPublishedDate(rawDate: String?): String {

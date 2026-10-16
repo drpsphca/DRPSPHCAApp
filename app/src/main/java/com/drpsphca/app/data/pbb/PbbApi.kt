@@ -83,6 +83,8 @@ data class Eviction(
     val day: Int? = null,
     val date: String? = null,
     @Json(name = "vote_type") val voteType: String? = null,
+    @Json(name = "desk_state") val deskState: String? = null,
+    @Json(name = "results_as_of") val resultsAsOf: String? = null,
     val note: String? = null,
     val nominated: List<EvictionNominee> = emptyList(),
     val evicted: List<String> = emptyList()
@@ -90,6 +92,7 @@ data class Eviction(
 
 data class EvictionNominee(
     val id: String? = null,
+    val label: String? = null,
     val percent: Double? = null,
     val result: String? = null
 )
