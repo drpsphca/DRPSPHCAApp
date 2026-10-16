@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,12 +30,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.drpsphca.app.PostItem
 import com.drpsphca.app.data.pbb.*
+import com.drpsphca.app.ui.WindowSize
 import com.drpsphca.app.ui.theme.Gilroy
 import com.drpsphca.app.ui.viewmodel.LiveSubTab
 import com.drpsphca.app.ui.viewmodel.PbbSection
 import com.drpsphca.app.ui.viewmodel.PbbViewModel
+import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -40,6 +47,8 @@ import java.util.Locale
 @Composable
 fun PbbUpdatesScreen(
     pbbViewModel: PbbViewModel,
+    navController: NavController,
+    windowSize: WindowSize,
     isDarkMode: Boolean,
     onAnnouncementClick: (AnnouncementPost) -> Unit
 ) {
@@ -88,12 +97,15 @@ fun PbbUpdatesScreen(
                 uiState.selectedSection == PbbSection.LIVE_UPDATES -> {
                     PbbLiveUpdatesView(
                         pbbViewModel = pbbViewModel,
+                        windowSize = windowSize,
                         isDarkMode = isDarkMode
                     )
                 }
                 else -> {
                     PbbAnnouncementsView(
                         announcements = uiState.announcements,
+                        navController = navController,
+                        windowSize = windowSize,
                         isDarkMode = isDarkMode,
                         onAnnouncementClick = onAnnouncementClick
                     )
@@ -162,6 +174,7 @@ fun PbbFilterChip(
 @Composable
 fun PbbLiveUpdatesView(
     pbbViewModel: PbbViewModel,
+    windowSize: WindowSize,
     isDarkMode: Boolean
 ) {
     val uiState by pbbViewModel.uiState.collectAsState()
@@ -171,183 +184,211 @@ fun PbbLiveUpdatesView(
     val currentSeasonLabel = uiState.availableSeasons.find { it.id == uiState.selectedSeasonId }?.label
         ?: uiState.selectedSeasonId ?: "Select Season"
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Season Dropdown Selector
-        item {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandedDropdown = true },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "PBB Season",
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 12.sp,
-                                color = if (isDarkMode) Color.LightGray else Color.Gray
-                            )
-                            Text(
-                                text = currentSeasonLabel,
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = if (isDarkMode) Color.White else Color.Black
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Season",
-                            tint = Color(0xFFBBA00C)
-                        )
-                    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isLandscape = maxWidth > maxHeight
+        val isTablet = windowSize != WindowSize.COMPACT || maxWidth >= 600.dp
 
-                    DropdownMenu(
-                        expanded = expandedDropdown,
-                        onDismissRequest = { expandedDropdown = false }
-                    ) {
-                        uiState.availableSeasons.forEach { item ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = item.label,
-                                        fontFamily = Gilroy,
-                                        fontWeight = if (item.id == uiState.selectedSeasonId) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                onClick = {
-                                    pbbViewModel.selectSeason(item.id)
-                                    expandedDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+        val gridColumns = when {
+            isTablet && isLandscape -> 4
+            isTablet && !isLandscape -> 3
+            !isTablet && isLandscape -> 3
+            else -> 2
         }
 
-        // Live Sub Tabs (Scrollable LazyRow)
-        item {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(LiveSubTab.values()) { tab ->
-                    val isSelected = uiState.selectedLiveSubTab == tab
-                    val tabLabel = when (tab) {
-                        LiveSubTab.OVERVIEW -> "Overview"
-                        LiveSubTab.HOUSEMATES -> "Housemates"
-                        LiveSubTab.NOMINATIONS -> "Nominations"
-                        LiveSubTab.WEEKLY_TASKS -> "Weekly Tasks"
-                    }
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { pbbViewModel.selectLiveSubTab(tab) },
-                        label = {
-                            Text(
-                                text = tabLabel,
-                                fontFamily = Gilroy,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp,
-                                maxLines = 1
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFBBA00C),
-                            selectedLabelColor = Color.Black
-                        )
-                    )
-                }
-            }
-        }
+        val enlargedAvatarSize = if (isTablet) 120.dp else 96.dp
 
-        // Content rendering based on selected sub-tab
-        if (seasonPack == null) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Season Dropdown Selector
             item {
-                PbbComingSoonCard(isDarkMode = isDarkMode)
-            }
-        } else {
-            when (uiState.selectedLiveSubTab) {
-                LiveSubTab.OVERVIEW -> {
-                    item { PbbSeasonHeaderCard(seasonPack = seasonPack, isDarkMode = isDarkMode) }
-                    item { PbbEvictionDeskCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
-                    item { PbbLatestNominationCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
-                    item { PbbLatestWeeklyTasksCard(weeklyTasks = seasonPack.weeklyTasks, isDarkMode = isDarkMode) }
-                    item { PbbHousematesPreviewCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
-                }
-                LiveSubTab.HOUSEMATES -> {
-                    if (seasonPack.housemates.isEmpty()) {
-                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
-                    } else {
-                        val sortedHousemates = seasonPack.housemates.sortedWith(
-                            compareBy(nullsLast()) { it.place ?: Int.MAX_VALUE }
-                        )
-                        items(sortedHousemates) { housemate ->
-                            PbbHousemateItemCard(
-                                seasonPack = seasonPack,
-                                housemate = housemate,
-                                photoUrl = pbbViewModel.getPhotoUrl(housemate.id),
-                                isDarkMode = isDarkMode
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedDropdown = true },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "PBB Season",
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 12.sp,
+                                    color = if (isDarkMode) Color.LightGray else Color.Gray
+                                )
+                                Text(
+                                    text = currentSeasonLabel,
+                                    fontFamily = Gilroy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = if (isDarkMode) Color.White else Color.Black
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Season",
+                                tint = Color(0xFFBBA00C)
                             )
                         }
-                    }
-                }
-                LiveSubTab.NOMINATIONS -> {
-                    if (seasonPack.nominationTallies.isEmpty() && seasonPack.evictions.isEmpty()) {
-                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
-                    } else {
-                        if (seasonPack.nominationTallies.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Nomination Tallies",
-                                    fontFamily = Gilroy,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                )
-                            }
-                            items(seasonPack.nominationTallies) { tally ->
-                                PbbNominationTallySectionCard(seasonPack = seasonPack, tally = tally, isDarkMode = isDarkMode)
-                            }
-                        }
 
-                        if (seasonPack.evictions.isNotEmpty()) {
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Eviction Results",
-                                    fontFamily = Gilroy,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    modifier = Modifier.padding(vertical = 4.dp)
+                        DropdownMenu(
+                            expanded = expandedDropdown,
+                            onDismissRequest = { expandedDropdown = false }
+                        ) {
+                            uiState.availableSeasons.forEach { item ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = item.label,
+                                            fontFamily = Gilroy,
+                                            fontWeight = if (item.id == uiState.selectedSeasonId) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        pbbViewModel.selectSeason(item.id)
+                                        expandedDropdown = false
+                                    }
                                 )
-                            }
-                            items(seasonPack.evictions) { eviction ->
-                                PbbEvictionResultSectionCard(seasonPack = seasonPack, eviction = eviction, isDarkMode = isDarkMode)
                             }
                         }
                     }
                 }
-                LiveSubTab.WEEKLY_TASKS -> {
-                    if (seasonPack.weeklyTasks.isEmpty()) {
-                        item { PbbComingSoonCard(isDarkMode = isDarkMode) }
-                    } else {
-                        items(seasonPack.weeklyTasks) { task ->
-                            PbbWeeklyTaskCard(task = task, isDarkMode = isDarkMode)
+            }
+
+            // Live Sub Tabs
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(LiveSubTab.values()) { tab ->
+                        val isSelected = uiState.selectedLiveSubTab == tab
+                        val tabLabel = when (tab) {
+                            LiveSubTab.OVERVIEW -> "Overview"
+                            LiveSubTab.HOUSEMATES -> "Housemates"
+                            LiveSubTab.NOMINATIONS -> "Nominations"
+                            LiveSubTab.WEEKLY_TASKS -> "Weekly Tasks"
+                        }
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { pbbViewModel.selectLiveSubTab(tab) },
+                            label = {
+                                Text(
+                                    text = tabLabel,
+                                    fontFamily = Gilroy,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFBBA00C),
+                                selectedLabelColor = Color.Black
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Content rendering based on selected sub-tab
+            if (seasonPack == null) {
+                item {
+                    PbbComingSoonCard(isDarkMode = isDarkMode)
+                }
+            } else {
+                when (uiState.selectedLiveSubTab) {
+                    LiveSubTab.OVERVIEW -> {
+                        item { PbbSeasonHeaderCard(seasonPack = seasonPack, isDarkMode = isDarkMode) }
+                        item { PbbEvictionDeskCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, gridColumns = gridColumns, avatarSize = enlargedAvatarSize, isDarkMode = isDarkMode) }
+                        item { PbbLatestNominationCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, gridColumns = gridColumns, avatarSize = enlargedAvatarSize, isDarkMode = isDarkMode) }
+                        item { PbbLatestWeeklyTasksCard(weeklyTasks = seasonPack.weeklyTasks, isDarkMode = isDarkMode) }
+                        item { PbbHousematesPreviewCard(seasonPack = seasonPack, pbbViewModel = pbbViewModel, isDarkMode = isDarkMode) }
+                    }
+                    LiveSubTab.HOUSEMATES -> {
+                        if (seasonPack.housemates.isEmpty()) {
+                            item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                        } else {
+                            val sortedHousemates = seasonPack.housemates.sortedWith(
+                                compareBy(nullsLast()) { it.place ?: Int.MAX_VALUE }
+                            )
+                            items(sortedHousemates) { housemate ->
+                                PbbHousemateItemCard(
+                                    seasonPack = seasonPack,
+                                    housemate = housemate,
+                                    photoUrl = pbbViewModel.getPhotoUrl(housemate.id),
+                                    isDarkMode = isDarkMode
+                                )
+                            }
+                        }
+                    }
+                    LiveSubTab.NOMINATIONS -> {
+                        if (seasonPack.nominationTallies.isEmpty() && seasonPack.evictions.isEmpty()) {
+                            item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                        } else {
+                            if (seasonPack.nominationTallies.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Nomination Tallies",
+                                        fontFamily = Gilroy,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                                items(seasonPack.nominationTallies) { tally ->
+                                    PbbNominationTallySectionCard(
+                                        seasonPack = seasonPack,
+                                        pbbViewModel = pbbViewModel,
+                                        tally = tally,
+                                        gridColumns = gridColumns,
+                                        avatarSize = enlargedAvatarSize,
+                                        isDarkMode = isDarkMode
+                                    )
+                                }
+                            }
+
+                            if (seasonPack.evictions.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Eviction Results",
+                                        fontFamily = Gilroy,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                                items(seasonPack.evictions) { eviction ->
+                                    PbbEvictionResultSectionCard(
+                                        seasonPack = seasonPack,
+                                        pbbViewModel = pbbViewModel,
+                                        eviction = eviction,
+                                        gridColumns = gridColumns,
+                                        avatarSize = enlargedAvatarSize,
+                                        isDarkMode = isDarkMode
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    LiveSubTab.WEEKLY_TASKS -> {
+                        if (seasonPack.weeklyTasks.isEmpty()) {
+                            item { PbbComingSoonCard(isDarkMode = isDarkMode) }
+                        } else {
+                            items(seasonPack.weeklyTasks) { task ->
+                                PbbWeeklyTaskCard(task = task, isDarkMode = isDarkMode)
+                            }
                         }
                     }
                 }
@@ -383,7 +424,7 @@ fun HousemateAvatar(
                 imageVector = Icons.Default.Person,
                 contentDescription = contentDescription,
                 tint = Color.White,
-                modifier = Modifier.size(size * 0.6f)
+                modifier = Modifier.size(size * 0.5f)
             )
         }
     }
@@ -528,6 +569,8 @@ fun PbbSeasonHeaderCard(seasonPack: SeasonPack, isDarkMode: Boolean) {
 fun PbbEvictionDeskCard(
     seasonPack: SeasonPack,
     pbbViewModel: PbbViewModel,
+    gridColumns: Int,
+    avatarSize: Dp,
     isDarkMode: Boolean
 ) {
     val votingOpen = seasonPack.season?.votingOpen == true
@@ -569,51 +612,21 @@ fun PbbEvictionDeskCard(
                     color = Color(0xFFC62828)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                // Grid of nominated housemates
-                CardGrid(items = latestEviction.nominated, columnCount = 2) { nominee ->
+
+                CardGrid(items = latestEviction.nominated, columnCount = gridColumns) { nominee ->
                     val housemate = seasonPack.housemates.find { it.id == nominee.id }
                     val photoUrl = nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
                     val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
                         ?: formatHousemateName(null, null, nominee.id ?: "")
 
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDarkMode) Color.DarkGray else Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            HousemateAvatar(
-                                photoUrl = photoUrl,
-                                contentDescription = hName,
-                                size = 48.dp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = hName,
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
-                            if (nominee.percent != null) {
-                                Text(
-                                    text = "${nominee.percent}%",
-                                    fontFamily = Gilroy,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF2E7D32)
-                                )
-                            }
-                        }
-                    }
+                    EnlargedEvictionNomineeCard(
+                        photoUrl = photoUrl,
+                        name = hName,
+                        percent = nominee.percent,
+                        result = nominee.result,
+                        avatarSize = avatarSize,
+                        isDarkMode = isDarkMode
+                    )
                 }
             } else {
                 Text(
@@ -651,6 +664,8 @@ fun PbbEvictionDeskCard(
 fun PbbLatestNominationCard(
     seasonPack: SeasonPack,
     pbbViewModel: PbbViewModel,
+    gridColumns: Int,
+    avatarSize: Dp,
     isDarkMode: Boolean
 ) {
     val lastTally = seasonPack.nominationTallies.lastOrNull() ?: return
@@ -686,64 +701,20 @@ fun PbbLatestNominationCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            CardGrid(items = nominatedEntries, columnCount = 2) { entry ->
+            CardGrid(items = nominatedEntries, columnCount = gridColumns) { entry ->
                 val housemate = seasonPack.housemates.find { it.id == entry.id }
                 val photoUrl = entry.id?.let { pbbViewModel.getPhotoUrl(it) }
                 val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
                     ?: formatHousemateName(entry.name, null, entry.id ?: "")
 
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        HousemateAvatar(
-                            photoUrl = photoUrl,
-                            contentDescription = hName,
-                            size = 48.dp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = hName,
-                            fontFamily = Gilroy,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        if (!entry.label.isNullOrEmpty()) {
-                            Text(
-                                text = entry.label,
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 11.sp,
-                                color = Color(0xFF0277BD)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val stateColor = getNominationStateColor(entry.state)
-                        Surface(
-                            color = stateColor,
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = statusLabel(entry.state).ifEmpty { "NOMINATED" },
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
+                EnlargedNominationEntryCard(
+                    photoUrl = photoUrl,
+                    name = hName,
+                    label = entry.label,
+                    state = entry.state,
+                    avatarSize = avatarSize,
+                    isDarkMode = isDarkMode
+                )
             }
         }
     }
@@ -825,8 +796,9 @@ fun PbbHousematesPreviewCard(
     pbbViewModel: PbbViewModel,
     isDarkMode: Boolean
 ) {
-    val previewHousemates = seasonPack.housemates.take(6)
-    if (previewHousemates.isEmpty()) return
+    // Requirement 2: Show every housemate from the selected season, not a preview of 6
+    val allHousemates = seasonPack.housemates
+    if (allHousemates.isEmpty()) return
 
     Card(
         colors = CardDefaults.cardColors(
@@ -848,7 +820,7 @@ fun PbbHousematesPreviewCard(
                     fontSize = 16.sp
                 )
                 Text(
-                    text = "See All",
+                    text = "See Details",
                     fontFamily = Gilroy,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
@@ -859,22 +831,22 @@ fun PbbHousematesPreviewCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(previewHousemates) { hm ->
+                items(allHousemates) { hm ->
                     val photoUrl = pbbViewModel.getPhotoUrl(hm.id)
-                    val hName = formatHousemateName(hm.name, hm.displayName, hm.id)
+                    val fullName = formatHousemateFullName(hm.name, hm.displayName, hm.id)
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.width(72.dp)
+                        modifier = Modifier.width(80.dp)
                     ) {
                         HousemateAvatar(
                             photoUrl = photoUrl,
-                            contentDescription = hName,
+                            contentDescription = fullName,
                             size = 64.dp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = hName,
+                            text = fullName,
                             fontFamily = Gilroy,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
@@ -908,6 +880,7 @@ fun PbbHousemateItemCard(
     photoUrl: String?,
     isDarkMode: Boolean
 ) {
+    // Housemates tab title: housemate.name (full name)
     val fullName = housemate.name ?: formatHousemateFullName(null, housemate.displayName, housemate.id)
 
     Card(
@@ -1013,7 +986,10 @@ fun PbbHousemateItemCard(
 @Composable
 fun PbbNominationTallySectionCard(
     seasonPack: SeasonPack,
+    pbbViewModel: PbbViewModel,
     tally: NominationTally,
+    gridColumns: Int,
+    avatarSize: Dp,
     isDarkMode: Boolean
 ) {
     Card(
@@ -1055,64 +1031,20 @@ fun PbbNominationTallySectionCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            CardGrid(items = tally.entries, columnCount = 2) { entry ->
+            CardGrid(items = tally.entries, columnCount = gridColumns) { entry ->
                 val housemate = seasonPack.housemates.find { it.id == entry.id }
-                val photoUrl = entry.id?.let { pbbViewModelPhotoUrl(seasonPack, it) }
+                val photoUrl = entry.id?.let { pbbViewModel.getPhotoUrl(it) }
                 val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
                     ?: formatHousemateName(entry.name, null, entry.id ?: "")
 
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        HousemateAvatar(
-                            photoUrl = photoUrl,
-                            contentDescription = hName,
-                            size = 48.dp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = hName,
-                            fontFamily = Gilroy,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        if (!entry.label.isNullOrEmpty()) {
-                            Text(
-                                text = entry.label,
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 11.sp,
-                                color = Color(0xFF0277BD)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val stateColor = getNominationStateColor(entry.state)
-                        Surface(
-                            color = stateColor,
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = statusLabel(entry.state).ifEmpty { "NOMINATED" },
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
+                EnlargedNominationEntryCard(
+                    photoUrl = photoUrl,
+                    name = hName,
+                    label = entry.label,
+                    state = entry.state,
+                    avatarSize = avatarSize,
+                    isDarkMode = isDarkMode
+                )
             }
         }
     }
@@ -1121,7 +1053,10 @@ fun PbbNominationTallySectionCard(
 @Composable
 fun PbbEvictionResultSectionCard(
     seasonPack: SeasonPack,
+    pbbViewModel: PbbViewModel,
     eviction: Eviction,
+    gridColumns: Int,
+    avatarSize: Dp,
     isDarkMode: Boolean
 ) {
     Card(
@@ -1164,65 +1099,151 @@ fun PbbEvictionResultSectionCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            CardGrid(items = eviction.nominated, columnCount = 2) { nominee ->
+            CardGrid(items = eviction.nominated, columnCount = gridColumns) { nominee ->
                 val housemate = seasonPack.housemates.find { it.id == nominee.id }
-                val photoUrl = nominee.id?.let { pbbViewModelPhotoUrl(seasonPack, it) }
+                val photoUrl = nominee.id?.let { pbbViewModel.getPhotoUrl(it) }
                 val hName = housemate?.let { formatHousemateName(it.name, it.displayName, it.id) }
                     ?: formatHousemateName(null, null, nominee.id ?: "")
 
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isDarkMode) Color.DarkGray else Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                EnlargedEvictionNomineeCard(
+                    photoUrl = photoUrl,
+                    name = hName,
+                    percent = nominee.percent,
+                    result = nominee.result,
+                    avatarSize = avatarSize,
+                    isDarkMode = isDarkMode
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EnlargedNominationEntryCard(
+    photoUrl: String?,
+    name: String,
+    label: String?,
+    state: String?,
+    avatarSize: Dp,
+    isDarkMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) Color.DarkGray else Color.White
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            HousemateAvatar(
+                photoUrl = photoUrl,
+                contentDescription = name,
+                size = avatarSize
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = name,
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+            if (!label.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = label,
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    color = Color(0xFF0277BD)
+                )
+            }
+            if (!state.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                val stateColor = getNominationStateColor(state)
+                Surface(
+                    color = stateColor,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        HousemateAvatar(
-                            photoUrl = photoUrl,
-                            contentDescription = hName,
-                            size = 48.dp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = hName,
-                            fontFamily = Gilroy,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        if (nominee.percent != null) {
-                            Text(
-                                text = "${nominee.percent}%",
-                                fontFamily = Gilroy,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color(0xFF2E7D32)
-                            )
-                        }
-                        if (!nominee.result.isNullOrEmpty()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val resColor = getEvictionResultColor(nominee.result)
-                            Surface(
-                                color = resColor,
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = statusLabel(nominee.result),
-                                    fontFamily = Gilroy,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = statusLabel(state).ifEmpty { "NOMINATED" },
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EnlargedEvictionNomineeCard(
+    photoUrl: String?,
+    name: String,
+    percent: Double?,
+    result: String?,
+    avatarSize: Dp,
+    isDarkMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkMode) Color.DarkGray else Color.White
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            HousemateAvatar(
+                photoUrl = photoUrl,
+                contentDescription = name,
+                size = avatarSize
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = name,
+                fontFamily = Gilroy,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+            if (percent != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${percent}%",
+                    fontFamily = Gilroy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF2E7D32)
+                )
+            }
+            if (!result.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                val resColor = getEvictionResultColor(result)
+                Surface(
+                    color = resColor,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = statusLabel(result),
+                        fontFamily = Gilroy,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
         }
@@ -1297,6 +1318,8 @@ fun PbbWeeklyTaskCard(
 @Composable
 fun PbbAnnouncementsView(
     announcements: List<AnnouncementPost>,
+    navController: NavController,
+    windowSize: WindowSize,
     isDarkMode: Boolean,
     onAnnouncementClick: (AnnouncementPost) -> Unit
 ) {
@@ -1309,81 +1332,55 @@ fun PbbAnnouncementsView(
             )
         }
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(announcements) { post ->
-                PbbAnnouncementCard(
-                    post = post,
-                    isDarkMode = isDarkMode,
-                    onClick = { onAnnouncementClick(post) }
-                )
+        val isCompact = windowSize == WindowSize.COMPACT
+        if (isCompact) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(announcements, key = { it.url ?: it.hashCode().toString() }) { post ->
+                    val itemUiModel = post.toItemUiModel()
+                    PostItem(
+                        post = itemUiModel,
+                        navController = navController,
+                        isDarkMode = isDarkMode,
+                        onPostClick = { onAnnouncementClick(post) }
+                    )
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 300.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(announcements, key = { it.url ?: it.hashCode().toString() }) { post ->
+                    val itemUiModel = post.toItemUiModel()
+                    PostItem(
+                        post = itemUiModel,
+                        navController = navController,
+                        isDarkMode = isDarkMode,
+                        onPostClick = { onAnnouncementClick(post) }
+                    )
+                }
             }
         }
     }
 }
 
-@Composable
-fun PbbAnnouncementCard(
-    post: AnnouncementPost,
-    isDarkMode: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDarkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE6E6E6)
-        )
-    ) {
-        Column {
-            if (!post.featuredImage.isNullOrEmpty()) {
-                AsyncImage(
-                    model = post.featuredImage,
-                    contentDescription = post.title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = post.title ?: "PBB Announcement",
-                    fontFamily = Gilroy,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = if (isDarkMode) MaterialTheme.colorScheme.onSurface else Color(0xFF025CA1)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                if (!post.date.isNullOrEmpty()) {
-                    Text(
-                        text = formatPbbPublishedDate(post.date),
-                        fontFamily = Gilroy,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 12.sp,
-                        color = if (isDarkMode) Color.LightGray else Color(0xFF666666)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-                if (!post.excerpt.isNullOrEmpty()) {
-                    Text(
-                        text = post.excerpt,
-                        fontFamily = Gilroy,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 14.sp,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
+fun AnnouncementPost.toItemUiModel(): PostItemUiModel {
+    return PostItemUiModel(
+        id = url.hashCode(),
+        formattedDate = formatCardPublishedDate(date),
+        plainTitle = title ?: "PBB Announcement",
+        plainExcerpt = excerpt ?: "",
+        imageUrl = featuredImage,
+        tags = emptyList(),
+        category = "PBB Updates"
+    )
 }
 
 @Composable
@@ -1412,18 +1409,6 @@ fun <T> CardGrid(
     }
 }
 
-fun pbbViewModelPhotoUrl(seasonPack: SeasonPack, id: String): String? {
-    val seasonId = seasonPack.season?.id ?: ""
-    val file = seasonPack.photos[id]
-    return if (file.isNullOrBlank()) {
-        null
-    } else if (file.startsWith("http")) {
-        file
-    } else {
-        "https://pbbupdates.drpsphca.com/assets/img/$seasonId/$file"
-    }
-}
-
 fun formatHousemateName(name: String?, displayName: String?, id: String): String {
     if (!displayName.isNullOrBlank()) return displayName
     if (!name.isNullOrBlank()) return name
@@ -1447,6 +1432,32 @@ fun statusLabel(status: String?): String {
         .replace('_', ' ')
         .trim()
         .uppercase(Locale.ROOT)
+}
+
+fun formatCardPublishedDate(rawDate: String?): String {
+    if (rawDate.isNullOrBlank()) return ""
+    val cleanDateStr = rawDate.take(10)
+
+    val inputFormats = listOf(
+        SimpleDateFormat("yyyy-MM-dd", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+        SimpleDateFormat("MMM dd, yyyy", Locale.US),
+        SimpleDateFormat("MMMM dd, yyyy", Locale.US)
+    )
+
+    for (format in inputFormats) {
+        try {
+            val date = format.parse(cleanDateStr) ?: format.parse(rawDate)
+            if (date != null) {
+                val outputFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
+                return outputFormat.format(date)
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    return rawDate
 }
 
 fun formatPbbPublishedDate(rawDate: String?): String {

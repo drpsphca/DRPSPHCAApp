@@ -878,6 +878,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     navController = navController,
                     pbbViewModel = pbbViewModel,
                     wordPressViewModel = wordPressViewModel,
+                    windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
                     onNotificationsToggle = {
@@ -2048,6 +2049,7 @@ fun PbbUpdatesMainScreen(
     navController: NavController,
     pbbViewModel: PbbViewModel,
     wordPressViewModel: WordPressViewModel,
+    windowSize: WindowSize,
     isDarkMode: Boolean,
     notificationsEnabled: Boolean,
     onNotificationsToggle: () -> Unit,
@@ -2074,6 +2076,8 @@ fun PbbUpdatesMainScreen(
 
         PbbUpdatesScreen(
             pbbViewModel = pbbViewModel,
+            navController = navController,
+            windowSize = windowSize,
             isDarkMode = isDarkMode,
             onAnnouncementClick = onAnnouncementClick
         )
