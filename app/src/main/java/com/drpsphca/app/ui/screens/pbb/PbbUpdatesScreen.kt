@@ -1418,8 +1418,7 @@ fun PbbAnnouncementsView(
         if (isCompact) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 items(announcements, key = { it.url ?: it.hashCode().toString() }) { post ->
                     val itemUiModel = post.toItemUiModel()
@@ -1434,10 +1433,7 @@ fun PbbAnnouncementsView(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 300.dp),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
                 items(announcements, key = { it.url ?: it.hashCode().toString() }) { post ->
                     val itemUiModel = post.toItemUiModel()
