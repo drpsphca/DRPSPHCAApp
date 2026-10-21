@@ -19,12 +19,21 @@
         android:enableOnBackInvokedCallback="false">
 
         <service
-            android:name=".service.MyFirebaseMessagingService"
+            android:name=".service.PbbMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <activity
+            android:name=".widget.PbbWidgetSelectSeasonActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DRPSPHCA">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".MainActivity"
@@ -44,6 +53,18 @@
                 <data android:scheme="drpsphca" android:host="post" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".widget.PbbWidgetReceiver"
+            android:exported="false"
+            android:label="@string/pbb_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pbb_widget_info" />
+        </receiver>
 
         <receiver
             android:name=".widget.NewsletterWidgetReceiver"

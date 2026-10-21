@@ -41,7 +41,8 @@ data class SeasonInfo(
     @Json(name = "current_week") val currentWeek: Int? = null,
     @Json(name = "current_day") val currentDay: Int? = null,
     val winner: String? = null,
-    val hosts: List<String> = emptyList()
+    val hosts: List<String> = emptyList(),
+    val available: Boolean = true
 )
 
 data class Housemate(

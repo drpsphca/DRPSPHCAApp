@@ -38,7 +38,8 @@ class PbbRepository(private val context: Context) {
     }
 
     fun getSortedSeasonKeys(seasons: Map<String, SeasonPack>): List<String> {
-        val keys = seasons.keys.toList()
+        val availableSeasons = seasons.filter { (_, pack) -> pack.season?.available == true }
+        val keys = availableSeasons.keys.toList()
         // Order: collab3, then gen11, then any others
         return keys.sortedWith(Comparator { k1, k2 ->
             val rank1 = when (k1.lowercase(Locale.ROOT)) {
@@ -53,6 +54,10 @@ class PbbRepository(private val context: Context) {
             }
             if (rank1 != rank2) rank1.compareTo(rank2) else k1.compareTo(k2)
         })
+    }
+
+    fun getAvailableSeasonKeys(seasons: Map<String, SeasonPack>): List<String> {
+        return getSortedSeasonKeys(seasons)
     }
 
     fun determineDefaultSeason(seasons: Map<String, SeasonPack>): String? {
@@ -105,12 +110,19 @@ class PbbRepository(private val context: Context) {
         val file = seasonPack?.photos?.get(housemateId)
         return if (file.isNullOrBlank()) {
             null
-        } else if (file.startsWith("http")) {
-            file
-        } else if (file.startsWith("/")) {
-            "https://pbbupdates.drpsphca.com$file"
         } else {
-            "https://pbbupdates.drpsphca.com/assets/img/$seasonId/$file"
+            resolvePhotoUrl(seasonId, file)
+        }
+    }
+
+    fun resolvePhotoUrl(seasonId: String, photoPathOrFilename: String?): String {
+        if (photoPathOrFilename.isNullOrBlank()) {
+            return "https://pbbupdates.drpsphca.com/assets/img/misc/misc_hm.png"
+        }
+        return when {
+            photoPathOrFilename.startsWith("http://") || photoPathOrFilename.startsWith("https://") -> photoPathOrFilename
+            photoPathOrFilename.startsWith("/") -> "https://pbbupdates.drpsphca.com$photoPathOrFilename"
+            else -> "https://pbbupdates.drpsphca.com/assets/img/$seasonId/$photoPathOrFilename"
         }
     }
 

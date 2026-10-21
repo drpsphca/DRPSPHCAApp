@@ -655,6 +655,13 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         setNotificationsEnabled(nextValue)
     }
 
+    private val _navigateToPbb = MutableStateFlow<String?>(null)
+    val navigateToPbb: StateFlow<String?> = _navigateToPbb.asStateFlow()
+
+    fun onPbbNavigationHandled() {
+        _navigateToPbb.value = null
+    }
+
     fun onNotificationPostIdHandled() {
         _navigateToPostId.value = null
     }
@@ -664,6 +671,14 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         if (postId != null) {
             _navigateToPostId.value = postId
             intent?.removeExtra("post_id")
+        }
+        val fcmSeason = intent?.getStringExtra("fcm_season")
+        val fcmType = intent?.getStringExtra("fcm_type")
+        if (fcmType != null || !fcmSeason.isNullOrEmpty()) {
+            _navigateToPbb.value = fcmSeason ?: "default"
+            intent?.removeExtra("fcm_type")
+            intent?.removeExtra("fcm_season")
+            intent?.removeExtra("fcm_url")
         }
     }
 

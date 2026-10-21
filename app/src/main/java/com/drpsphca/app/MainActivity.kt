@@ -174,6 +174,7 @@ class MainActivity : ComponentActivity() {
             wordPressViewModel.setNotificationsEnabled(true)
             // Auto-subscribe once permission is granted (Android 13+)
             FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
+            subscribeToPbbTopics()
         } else {
             wordPressViewModel.setNotificationsEnabled(false)
             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
@@ -184,6 +185,52 @@ class MainActivity : ComponentActivity() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private fun ensureFirebaseInitialized() {
+        try {
+            if (com.google.firebase.FirebaseApp.getApps(this).isEmpty()) {
+                val options = com.google.firebase.FirebaseOptions.Builder()
+                    .setProjectId("device-streaming-bafa1723")
+                    .setApplicationId("1:210376071919:android:1cf1a5c506cd78d6a8191a")
+                    .setApiKey("AIzaSyAFe5bXbQMeDVnNqnUjS6h1dyaAvedc0Bk")
+                    .setStorageBucket("device-streaming-bafa1723.firebasestorage.app")
+                    .build()
+                com.google.firebase.FirebaseApp.initializeApp(this, options)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to initialize FirebaseApp", e)
+        }
+    }
+
+    private fun subscribeToPbbTopics() {
+        ensureFirebaseInitialized()
+        FirebaseMessaging.getInstance().subscribeToTopic("announcements")
+        FirebaseMessaging.getInstance().subscribeToTopic("nominations")
+        FirebaseMessaging.getInstance().subscribeToTopic("evictions")
+    }
+
+    private fun createNotificationChannels() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                "pbb_updates",
+                "PBB Updates",
+                android.app.NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun schedulePbbBackgroundWorker() {
+        val pbbWorkRequest = androidx.work.PeriodicWorkRequestBuilder<com.drpsphca.app.worker.PbbBackgroundWorker>(
+            15, java.util.concurrent.TimeUnit.MINUTES
+        ).build()
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "pbb_background_check",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            pbbWorkRequest
+        )
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -198,6 +245,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        ensureFirebaseInitialized()
+
+        createNotificationChannels()
+        schedulePbbBackgroundWorker()
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                subscribeToPbbTopics()
+            }
+        } else {
+            subscribeToPbbTopics()
+        }
         
         // Schedule widget updates
         val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.drpsphca.app.widget.WidgetUpdateWorker>(
@@ -720,6 +779,47 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         navigateToPostId?.let { postId ->
             navController.navigate("postdetail/$postId")
             wordPressViewModel.onNotificationPostIdHandled()
+        }
+    }
+
+    val navigateToPbb by wordPressViewModel.navigateToPbb.collectAsState()
+    LaunchedEffect(navigateToPbb) {
+        navigateToPbb?.let { seasonId ->
+            if (seasonId != "default") {
+                pbbViewModel.selectSeason(seasonId)
+            }
+            pbbViewModel.selectSection(com.drpsphca.app.ui.viewmodel.PbbSection.LIVE_UPDATES)
+            pbbViewModel.selectLiveSubTab(com.drpsphca.app.ui.viewmodel.LiveSubTab.OVERVIEW)
+            navController.navigate("pbb_updates")
+            wordPressViewModel.onPbbNavigationHandled()
+        }
+    }
+
+    val currentActivity = context as? Activity
+    val currentIntent = currentActivity?.intent
+    LaunchedEffect(currentIntent) {
+        val fcmType = currentIntent?.getStringExtra("fcm_type")
+        val fcmSeason = currentIntent?.getStringExtra("fcm_season")
+        val fcmUrl = currentIntent?.getStringExtra("fcm_url")
+
+        if (fcmType != null) {
+            if (!fcmSeason.isNullOrEmpty()) {
+                pbbViewModel.selectSeason(fcmSeason)
+            }
+            when (fcmType) {
+                "nomination", "eviction" -> {
+                    pbbViewModel.selectSection(com.drpsphca.app.ui.viewmodel.PbbSection.LIVE_UPDATES)
+                    pbbViewModel.selectLiveSubTab(com.drpsphca.app.ui.viewmodel.LiveSubTab.NOMINATIONS)
+                    navController.navigate("pbb_updates")
+                }
+                "announcement" -> {
+                    pbbViewModel.selectSection(com.drpsphca.app.ui.viewmodel.PbbSection.ANNOUNCEMENTS)
+                    navController.navigate("pbb_updates")
+                }
+            }
+            currentIntent.removeExtra("fcm_type")
+            currentIntent.removeExtra("fcm_season")
+            currentIntent.removeExtra("fcm_url")
         }
     }
 

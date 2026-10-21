@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -42,6 +43,7 @@ import com.drpsphca.app.ui.viewmodel.PbbViewModel
 import com.drpsphca.app.ui.viewmodel.PostItemUiModel
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,6 +186,9 @@ fun PbbLiveUpdatesView(
     val currentSeasonLabel = uiState.availableSeasons.find { it.id == uiState.selectedSeasonId }?.label
         ?: uiState.selectedSeasonId ?: "Select Season"
 
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
         val isTablet = windowSize != WindowSize.COMPACT || maxWidth >= 600.dp
@@ -198,6 +203,7 @@ fun PbbLiveUpdatesView(
         val enlargedAvatarSize = if (isTablet) 120.dp else 96.dp
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -335,18 +341,39 @@ fun PbbLiveUpdatesView(
                         if (seasonPack.nominationTallies.isEmpty() && seasonPack.evictions.isEmpty()) {
                             item { PbbComingSoonCard(isDarkMode = isDarkMode) }
                         } else {
-                            if (seasonPack.nominationTallies.isNotEmpty()) {
-                                item {
-                                    Text(
-                                        text = "Nomination Tallies",
-                                        fontFamily = Gilroy,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp,
-                                        color = if (isDarkMode) Color.White else Color.Black,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
+                            val sortedTallies = seasonPack.nominationTallies.sortedByDescending { it.week ?: it.id ?: 0 }
+                            val sortedEvictions = seasonPack.evictions.sortedByDescending { it.week ?: 0 }
+
+                            if (sortedTallies.isNotEmpty()) {
+                                item(key = "nomination_tallies_heading") {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Nomination Tallies",
+                                            fontFamily = Gilroy,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = if (isDarkMode) Color.White else Color.Black
+                                        )
+                                        TextButton(onClick = {
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(3 + sortedTallies.size)
+                                            }
+                                        }) {
+                                            Text(
+                                                text = "Jump to Eviction Results",
+                                                fontFamily = Gilroy,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = Color(0xFFBBA00C)
+                                            )
+                                        }
+                                    }
                                 }
-                                items(seasonPack.nominationTallies) { tally ->
+                                items(sortedTallies, key = { "tally_${it.id ?: it.week}" }) { tally ->
                                     PbbNominationTallySectionCard(
                                         seasonPack = seasonPack,
                                         pbbViewModel = pbbViewModel,
@@ -358,19 +385,37 @@ fun PbbLiveUpdatesView(
                                 }
                             }
 
-                            if (seasonPack.evictions.isNotEmpty()) {
-                                item {
+                            if (sortedEvictions.isNotEmpty()) {
+                                item(key = "eviction-results") {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Eviction Results",
-                                        fontFamily = Gilroy,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp,
-                                        color = if (isDarkMode) Color.White else Color.Black,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Eviction Results",
+                                            fontFamily = Gilroy,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = if (isDarkMode) Color.White else Color.Black
+                                        )
+                                        TextButton(onClick = {
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(2)
+                                            }
+                                        }) {
+                                            Text(
+                                                text = "Jump to Nomination Tallies",
+                                                fontFamily = Gilroy,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = Color(0xFFBBA00C)
+                                            )
+                                        }
+                                    }
                                 }
-                                items(seasonPack.evictions) { eviction ->
+                                items(sortedEvictions, key = { "eviction_${it.week}" }) { eviction ->
                                     PbbEvictionResultSectionCard(
                                         seasonPack = seasonPack,
                                         pbbViewModel = pbbViewModel,
@@ -387,7 +432,8 @@ fun PbbLiveUpdatesView(
                         if (seasonPack.weeklyTasks.isEmpty()) {
                             item { PbbComingSoonCard(isDarkMode = isDarkMode) }
                         } else {
-                            items(seasonPack.weeklyTasks) { task ->
+                            val sortedTasks = seasonPack.weeklyTasks.sortedByDescending { it.week ?: 0 }
+                            items(sortedTasks) { task ->
                                 PbbWeeklyTaskCard(task = task, isDarkMode = isDarkMode)
                             }
                         }
@@ -1124,7 +1170,7 @@ fun PbbEvictionResultSectionCard(
             )
             val subInfo = listOfNotNull(
                 eviction.date,
-                eviction.voteType?.let { "Vote Type: $it" },
+                eviction.voteType?.let { "Vote Type: ${formatVoteType(it)}" },
                 eviction.resultsAsOf?.let { "Results as of $it" }
             ).joinToString(" • ")
             if (subInfo.isNotEmpty()) {
@@ -1514,7 +1560,7 @@ fun statusLabel(status: String?): String {
 
 fun formatEvictionPercent(percent: Double?): String {
     return if (percent != null) {
-        "%.1f%%".format(Locale.US, percent)
+        "%.2f%%".format(Locale.US, percent)
     } else {
         "0.00%"
     }
@@ -1597,5 +1643,14 @@ fun getEvictionResultColor(result: String?): Color {
         "evicted" -> Color(0xFFC62828) // red
         "winner" -> Color(0xFF0D47A1) // blue
         else -> Color(0xFF0277BD)
+    }
+}
+
+fun formatVoteType(voteType: String?): String {
+    return when (voteType?.lowercase(Locale.ROOT)) {
+        "save_evict" -> "Save or Evict Voting"
+        "save" -> "Save Voting"
+        "finale" -> "Finale"
+        else -> voteType?.replace('_', ' ')?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() } ?: ""
     }
 }

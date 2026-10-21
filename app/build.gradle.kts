@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26102001
-        versionName = "phcaapp-stable-26.10.20.1"
+        versionCode = 26102101
+        versionName = "phcaapp-stable-26.10.21.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -124,12 +124,4 @@ dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
-}
-
-androidComponents {
-    onVariants(selector().withFlavor("distribution" to "appTest")) { variant ->
-        tasks.named("process${variant.name.replaceFirstChar { it.uppercase() }}GoogleServices").configure {
-            enabled = false
-        }
-    }
 }
