@@ -667,18 +667,19 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun handleNotificationIntent(intent: Intent?) {
-        val postId = intent?.getStringExtra("post_id") ?: intent?.data?.getQueryParameter("id")
+        if (intent == null) return
+        val postId = intent.getStringExtra("post_id") ?: intent.data?.getQueryParameter("id")
         if (postId != null) {
             _navigateToPostId.value = postId
-            intent?.removeExtra("post_id")
+            intent.removeExtra("post_id")
         }
-        val fcmSeason = intent?.getStringExtra("fcm_season")
-        val fcmType = intent?.getStringExtra("fcm_type")
+        val fcmSeason = intent.getStringExtra("fcm_season")
+        val fcmType = intent.getStringExtra("fcm_type")
         if (fcmType != null || !fcmSeason.isNullOrEmpty()) {
             _navigateToPbb.value = fcmSeason ?: "default"
-            intent?.removeExtra("fcm_type")
-            intent?.removeExtra("fcm_season")
-            intent?.removeExtra("fcm_url")
+            intent.removeExtra("fcm_type")
+            intent.removeExtra("fcm_season")
+            intent.removeExtra("fcm_url")
         }
     }
 
