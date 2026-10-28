@@ -13,8 +13,8 @@ android {
         applicationId = "com.drpsphca.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26102701
-        versionName = "phcaapp-stable-26.10.27.1"
+        versionCode = 26102801
+        versionName = "phcaapp-stable-26.10.28.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
