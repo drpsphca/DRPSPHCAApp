@@ -27,3 +27,4 @@ dependencyResolutionManagement {
 rootProject.name = "DRPS PHCA"
 include(":app")
 include(":shared")
+include(":shared")
