@@ -7,5 +7,8 @@ Open `iosApp.xcodeproj` in Xcode and run the `iosApp` scheme on an iOS
 simulator or device. The Xcode build phase invokes Gradle to build and embed
 the framework; use the repository's Gradle wrapper and ensure Java is available.
 
-The shared screen is an integration starter only. Existing Android-only
-features, services, and platform-specific dependencies have not been ported.
+The shared app provides tabs for Home, Blog, Newsletter, TV Ad Listings,
+PBB Updates, and Bite-sized content. Each section displays its corresponding
+public website using the platform's native web view. Android-only services
+such as push notifications, home-screen widgets, and store updates are not
+included in the iOS app.
