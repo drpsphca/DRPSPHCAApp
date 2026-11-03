@@ -11,6 +11,7 @@ interface WordPressApi {
         @Query("per_page") perPage: Int = 10,
         @Query("categories") categories: Int? = null,
         @Query("search") search: String? = null,
+        @Query("slug") slug: String? = null,
         @Query("tags") tags: String? = null,
         @Query("after") after: String? = null,
         @Query("before") before: String? = null,

@@ -13,6 +13,7 @@ import com.drpsphca.app.data.Post
 import com.drpsphca.app.data.Rendered
 import com.drpsphca.app.data.WordPressApi
 import com.drpsphca.app.data.WordPressClient
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +102,59 @@ data class PostDetailUiModel(
             localImageUrl = localImageUrl,
             category = category
         )
+    }
+}
+
+data class NotificationChannelStates(
+    val blogEnabled: Boolean = false,
+    val newsletterEnabled: Boolean = false,
+    val tvalEnabled: Boolean = false,
+    val appEnabled: Boolean = false,
+    val pbbEnabled: Boolean = true
+)
+
+data class NotificationTarget(
+    val channel: String?,
+    val url: String?,
+    val postId: Int?
+)
+
+fun extractPostId(url: String?, postIdExtra: String?): Int? {
+    if (!postIdExtra.isNullOrEmpty()) {
+        postIdExtra.toIntOrNull()?.let { return it }
+    }
+    if (url.isNullOrEmpty()) return null
+    try {
+        val uri = android.net.Uri.parse(url)
+        val p = uri.getQueryParameter("p") ?: uri.getQueryParameter("id") ?: uri.getQueryParameter("page_id")
+        if (p != null) {
+            p.toIntOrNull()?.let { return it }
+        }
+        val segments = uri.pathSegments
+        for (segment in segments.reversed()) {
+            val num = segment.toIntOrNull()
+            if (num != null && num > 0) {
+                return num
+            }
+        }
+    } catch (e: Exception) {
+        // Fallback
+    }
+    return null
+}
+
+fun extractSlug(url: String?): String? {
+    if (url.isNullOrEmpty()) return null
+    try {
+        val uri = android.net.Uri.parse(url)
+        val segments = uri.pathSegments.filter { it.isNotEmpty() }
+        val last = segments.lastOrNull()
+        if (last != null && last.toIntOrNull() == null) {
+            return last
+        }
+        return segments.getOrNull(segments.size - 2) ?: last
+    } catch (e: Exception) {
+        return null
     }
 }
 
@@ -645,9 +699,103 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
         prefs.edit().putBoolean("dark_mode", isDark).apply()
     }
 
+    private val channelPrefs = application.getSharedPreferences("notification_channels", Context.MODE_PRIVATE)
+
+    private val _channelStates = MutableStateFlow(
+        NotificationChannelStates(
+            blogEnabled = channelPrefs.getBoolean("blog", false),
+            newsletterEnabled = channelPrefs.getBoolean("newsletter", false),
+            tvalEnabled = channelPrefs.getBoolean("tval", false),
+            appEnabled = channelPrefs.getBoolean("app", false),
+            pbbEnabled = channelPrefs.getBoolean("pbb", true)
+        )
+    )
+    val channelStates: StateFlow<NotificationChannelStates> = _channelStates.asStateFlow()
+
+    fun toggleChannelNotification(channelKey: String, onPermissionNeeded: () -> Unit) {
+        val currentStates = _channelStates.value
+        when (channelKey) {
+            "blog" -> {
+                val next = !currentStates.blogEnabled
+                if (next) onPermissionNeeded()
+                setChannelState("blog", "phca-blog", next)
+                _channelStates.update { it.copy(blogEnabled = next) }
+            }
+            "newsletter" -> {
+                val next = !currentStates.newsletterEnabled
+                if (next) onPermissionNeeded()
+                setChannelState("newsletter", "phca-newsletter", next)
+                _channelStates.update { it.copy(newsletterEnabled = next) }
+            }
+            "tval" -> {
+                val next = !currentStates.tvalEnabled
+                if (next) onPermissionNeeded()
+                setChannelState("tval", "phca-tval", next)
+                _channelStates.update { it.copy(tvalEnabled = next) }
+            }
+            "app" -> {
+                val next = !currentStates.appEnabled
+                if (next) onPermissionNeeded()
+                setChannelState("app", "phca-app", next)
+                _channelStates.update { it.copy(appEnabled = next) }
+            }
+            "pbb" -> {
+                val next = !currentStates.pbbEnabled
+                if (next) onPermissionNeeded()
+                setPbbChannelState(next)
+                _channelStates.update { it.copy(pbbEnabled = next) }
+            }
+        }
+    }
+
+    private fun setChannelState(prefKey: String, topic: String, enabled: Boolean) {
+        channelPrefs.edit().putBoolean(prefKey, enabled).apply()
+        val messaging = FirebaseMessaging.getInstance()
+        if (enabled) {
+            messaging.subscribeToTopic(topic)
+        } else {
+            messaging.unsubscribeFromTopic(topic)
+        }
+    }
+
+    private fun setPbbChannelState(enabled: Boolean) {
+        channelPrefs.edit().putBoolean("pbb", enabled).apply()
+        val messaging = FirebaseMessaging.getInstance()
+        if (enabled) {
+            messaging.subscribeToTopic("announcements")
+            messaging.subscribeToTopic("nominations")
+            messaging.subscribeToTopic("evictions")
+        } else {
+            messaging.unsubscribeFromTopic("announcements")
+            messaging.unsubscribeFromTopic("nominations")
+            messaging.unsubscribeFromTopic("evictions")
+        }
+    }
+
+    fun restoreActiveChannelSubscriptions() {
+        val states = _channelStates.value
+        val messaging = FirebaseMessaging.getInstance()
+        if (states.blogEnabled) messaging.subscribeToTopic("phca-blog")
+        if (states.newsletterEnabled) messaging.subscribeToTopic("phca-newsletter")
+        if (states.tvalEnabled) messaging.subscribeToTopic("phca-tval")
+        if (states.appEnabled) messaging.subscribeToTopic("phca-app")
+        if (states.pbbEnabled) {
+            messaging.subscribeToTopic("announcements")
+            messaging.subscribeToTopic("nominations")
+            messaging.subscribeToTopic("evictions")
+        }
+    }
+
     fun setNotificationsEnabled(enabled: Boolean) {
         _notificationsEnabled.value = enabled
         prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+        val messaging = FirebaseMessaging.getInstance()
+        val topics = listOf("phca-blog", "phca-newsletter", "phca-tval", "phca-app", "announcements", "nominations", "evictions", "new_posts")
+        if (enabled) {
+            topics.forEach { messaging.subscribeToTopic(it) }
+        } else {
+            topics.forEach { messaging.unsubscribeFromTopic(it) }
+        }
     }
 
     fun toggleNotifications() {
@@ -657,6 +805,27 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _navigateToPbb = MutableStateFlow<String?>(null)
     val navigateToPbb: StateFlow<String?> = _navigateToPbb.asStateFlow()
+
+    private val _navigateToChannel = MutableStateFlow<String?>(null)
+    val navigateToChannel: StateFlow<String?> = _navigateToChannel.asStateFlow()
+
+    private val _navigateToUrl = MutableStateFlow<String?>(null)
+    val navigateToUrl: StateFlow<String?> = _navigateToUrl.asStateFlow()
+
+    fun onChannelNavigationHandled() {
+        _navigateToChannel.value = null
+    }
+
+    fun onUrlNavigationHandled() {
+        _navigateToUrl.value = null
+    }
+
+    private val _notificationTarget = MutableStateFlow<NotificationTarget?>(null)
+    val notificationTarget: StateFlow<NotificationTarget?> = _notificationTarget.asStateFlow()
+
+    fun onNotificationTargetHandled() {
+        _notificationTarget.value = null
+    }
 
     fun onPbbNavigationHandled() {
         _navigateToPbb.value = null
@@ -668,18 +837,29 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun handleNotificationIntent(intent: Intent?) {
         if (intent == null) return
-        val postId = intent.getStringExtra("post_id") ?: intent.data?.getQueryParameter("id")
-        if (postId != null) {
-            _navigateToPostId.value = postId
-            intent.removeExtra("post_id")
-        }
+        val postIdExtra = intent.getStringExtra("post_id") ?: intent.data?.getQueryParameter("id")
+        val fcmUrl = intent.getStringExtra("fcm_url")
+        val fcmChannel = intent.getStringExtra("fcm_channel")
         val fcmSeason = intent.getStringExtra("fcm_season")
         val fcmType = intent.getStringExtra("fcm_type")
-        if (fcmType != null || !fcmSeason.isNullOrEmpty()) {
+
+        val postId = extractPostId(fcmUrl, postIdExtra)
+
+        if (!fcmChannel.isNullOrEmpty() || !fcmUrl.isNullOrEmpty() || postId != null) {
+            _notificationTarget.value = NotificationTarget(
+                channel = fcmChannel?.lowercase(Locale.ROOT),
+                url = fcmUrl,
+                postId = postId
+            )
+            intent.removeExtra("fcm_url")
+            intent.removeExtra("fcm_channel")
+            intent.removeExtra("post_id")
+        }
+
+        if (fcmType == "announcement" || fcmType == "nomination" || fcmType == "eviction" || fcmType == "pbb_updates" || !fcmSeason.isNullOrEmpty()) {
             _navigateToPbb.value = fcmSeason ?: "default"
             intent.removeExtra("fcm_type")
             intent.removeExtra("fcm_season")
-            intent.removeExtra("fcm_url")
         }
     }
 
@@ -824,6 +1004,88 @@ class WordPressViewModel(application: Application) : AndroidViewModel(applicatio
                 } catch (e: Exception) {
                     Log.e("WordPressViewModel", "Error fetching post", e)
                     _detailUiState.update { PostDetailUiState.Error(e.message ?: "Unknown error") }
+                }
+            }
+        }
+    }
+
+    fun fetchPostByUrl(url: String, isTval: Boolean = false, isAppx: Boolean = false) {
+        viewModelScope.launch {
+            mutex.withLock {
+                _detailUiState.update { PostDetailUiState.Loading }
+                try {
+                    val uri = android.net.Uri.parse(url)
+                    val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+
+                    val useTval = isTval || host.contains("tval.drpsphca.com")
+                    val useAppx = isAppx || host.contains("app.drpsphca.com")
+
+                    val slug = extractSlug(url)
+                    val posts = when {
+                        useTval -> tvalApi.getPosts(slug = slug, perPage = 1)
+                        useAppx -> appxApi.getPosts(slug = slug, perPage = 1)
+                        else -> wordPressApi.getPosts(slug = slug, perPage = 1)
+                    }
+                    val post = posts.firstOrNull()
+                    if (post != null) {
+                        _detailUiState.update { PostDetailUiState.Success(post.toDetailUiModel(isTval = useTval || useAppx)) }
+                    } else {
+                        val searchPosts = when {
+                            useTval -> tvalApi.getPosts(search = url, perPage = 1)
+                            useAppx -> appxApi.getPosts(search = url, perPage = 1)
+                            else -> wordPressApi.getPosts(search = url, perPage = 1)
+                        }
+                        val searchPost = searchPosts.firstOrNull()
+                        if (searchPost != null) {
+                            _detailUiState.update { PostDetailUiState.Success(searchPost.toDetailUiModel(isTval = useTval || useAppx)) }
+                        } else {
+                            val recentPosts = when {
+                                useTval -> tvalApi.getPosts(perPage = 10)
+                                useAppx -> appxApi.getPosts(perPage = 10)
+                                else -> emptyList()
+                            }
+                            val matchingPost = recentPosts.find { p ->
+                                p.link == url || (slug != null && p.link.contains(slug))
+                            } ?: recentPosts.firstOrNull()
+
+                            if (matchingPost != null) {
+                                _detailUiState.update { PostDetailUiState.Success(matchingPost.toDetailUiModel(isTval = useTval || useAppx)) }
+                            } else if (useTval || useAppx) {
+                                _detailUiState.update { PostDetailUiState.Success(Post(
+                                    id = 0,
+                                    date = "",
+                                    modified = "",
+                                    link = url,
+                                    title = Rendered("Post"),
+                                    content = Rendered("<p>Post available at <a href=\"$url\">$url</a></p>"),
+                                    excerpt = Rendered(""),
+                                    embedded = null
+                                ).toDetailUiModel(isTval = useTval || useAppx)) }
+                            } else {
+                                _detailUiState.update { PostDetailUiState.Error("Post not found for URL") }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("WordPressViewModel", "Error fetching post by URL", e)
+                    val uri = android.net.Uri.parse(url)
+                    val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+                    val useTval = isTval || host.contains("tval.drpsphca.com")
+                    val useAppx = isAppx || host.contains("app.drpsphca.com")
+                    if (useTval || useAppx) {
+                        _detailUiState.update { PostDetailUiState.Success(Post(
+                            id = 0,
+                            date = "",
+                            modified = "",
+                            link = url,
+                            title = Rendered("Post"),
+                            content = Rendered("<p>Post available at <a href=\"$url\">$url</a></p>"),
+                            excerpt = Rendered(""),
+                            embedded = null
+                        ).toDetailUiModel(isTval = useTval || useAppx)) }
+                    } else {
+                        _detailUiState.update { PostDetailUiState.Error(e.message ?: "Unknown error") }
+                    }
                 }
             }
         }

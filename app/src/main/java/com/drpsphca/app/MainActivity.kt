@@ -174,7 +174,7 @@ class MainActivity : ComponentActivity() {
             wordPressViewModel.setNotificationsEnabled(true)
             // Auto-subscribe once permission is granted (Android 13+)
             FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-            subscribeToPbbTopics()
+            subscribeToTopics()
         } else {
             wordPressViewModel.setNotificationsEnabled(false)
             FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
@@ -203,22 +203,51 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun subscribeToPbbTopics() {
+    private fun subscribeToTopics() {
         ensureFirebaseInitialized()
-        FirebaseMessaging.getInstance().subscribeToTopic("announcements")
-        FirebaseMessaging.getInstance().subscribeToTopic("nominations")
-        FirebaseMessaging.getInstance().subscribeToTopic("evictions")
+        val messaging = FirebaseMessaging.getInstance()
+        messaging.subscribeToTopic("phca-blog")
+        messaging.subscribeToTopic("phca-newsletter")
+        messaging.subscribeToTopic("phca-tval")
+        messaging.subscribeToTopic("phca-app")
+        messaging.subscribeToTopic("announcements")
+        messaging.subscribeToTopic("nominations")
+        messaging.subscribeToTopic("evictions")
     }
 
     private fun createNotificationChannels() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = android.app.NotificationChannel(
-                "pbb_updates",
-                "PBB Updates",
-                android.app.NotificationManager.IMPORTANCE_DEFAULT
+            val manager = getSystemService(android.app.NotificationManager::class.java) ?: return
+
+            val channels = listOf(
+                android.app.NotificationChannel(
+                    "phca_blog",
+                    "DRPS PHCA Blog",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ),
+                android.app.NotificationChannel(
+                    "phca_newsletter",
+                    "DRPS PHCA Newsletter",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ),
+                android.app.NotificationChannel(
+                    "phca_tval",
+                    "DRPS PHCA TVAL",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ),
+                android.app.NotificationChannel(
+                    "phca_app",
+                    "DRPS PHCA App-Exclusive",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ),
+                android.app.NotificationChannel(
+                    "pbb_updates",
+                    "PBB Updates",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                )
             )
-            val manager = getSystemService(android.app.NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
+
+            channels.forEach { manager.createNotificationChannel(it) }
         }
     }
 
@@ -233,9 +262,29 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun handleUrlIntent(intent: Intent?): Boolean {
+        if (intent == null) return false
+        val url = intent.getStringExtra("url") ?: intent.getStringExtra("post_url") ?: intent.getStringExtra("fcm_url")
+        if (!url.isNullOrEmpty()) {
+            val channel = intent.getStringExtra("channel") ?: intent.getStringExtra("fcm_channel")
+            val detailIntent = Intent(this, com.drpsphca.app.ui.screens.PostDetailActivity::class.java).apply {
+                putExtra("post_url", url)
+                putExtra("url", url)
+                if (!channel.isNullOrEmpty()) {
+                    putExtra("fcm_channel", channel)
+                }
+            }
+            startActivity(detailIntent)
+            finish()
+            return true
+        }
+        return false
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (handleUrlIntent(intent)) return
         val wordPressViewModel: WordPressViewModel by lazy { 
             androidx.lifecycle.ViewModelProvider(this)[WordPressViewModel::class.java]
         }
@@ -245,6 +294,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (handleUrlIntent(intent)) return
         ensureFirebaseInitialized()
 
         createNotificationChannels()
@@ -252,10 +302,10 @@ class MainActivity : ComponentActivity() {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                subscribeToPbbTopics()
+                subscribeToTopics()
             }
         } else {
-            subscribeToPbbTopics()
+            subscribeToTopics()
         }
         
         // Schedule widget updates
@@ -753,7 +803,16 @@ private fun requestReview(context: Context) {
 @Composable
 fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
     val darkModeConfig by wordPressViewModel.darkModeConfig.collectAsState()
-    val notificationsEnabled by wordPressViewModel.notificationsEnabled.collectAsState()
+    val channelStates by wordPressViewModel.channelStates.collectAsState()
+    val context = LocalContext.current
+    val onToggleChannel: (String) -> Unit = { channelKey ->
+        val activity = context as? MainActivity
+        wordPressViewModel.toggleChannelNotification(channelKey) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                activity?.requestNotificationPermission()
+            }
+        }
+    }
     val isSystemDark = isSystemInDarkTheme()
     val isDarkMode = when (darkModeConfig) {
         WordPressViewModel.DarkModeConfig.ON -> true
@@ -761,7 +820,6 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         WordPressViewModel.DarkModeConfig.AUTO -> isSystemDark
     }
 
-    val context = LocalContext.current
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -795,14 +853,59 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
         }
     }
 
+    val notificationTarget by wordPressViewModel.notificationTarget.collectAsState()
+    LaunchedEffect(notificationTarget) {
+        notificationTarget?.let { target ->
+            val channel = target.channel ?: "blog"
+            val url = target.url
+            val postId = target.postId
+
+            if (postId != null) {
+                when (channel) {
+                    "tval" -> navController.navigate("postdetail/$postId?isTval=true")
+                    "app" -> navController.navigate("postdetail/$postId?isAppx=true")
+                    else -> navController.navigate("postdetail/$postId")
+                }
+            } else if (!url.isNullOrEmpty()) {
+                val encodedUrl = Uri.encode(url)
+                when (channel) {
+                    "tval" -> navController.navigate("postdetailByUrl?url=$encodedUrl&isTval=true")
+                    "app" -> navController.navigate("postdetailByUrl?url=$encodedUrl&isAppx=true")
+                    else -> navController.navigate("postdetailByUrl?url=$encodedUrl")
+                }
+            } else {
+                when (channel) {
+                    "blog" -> navController.navigate("blog")
+                    "newsletter" -> navController.navigate("newsletter")
+                    "tval" -> navController.navigate("tval")
+                    "app" -> navController.navigate("home")
+                    else -> navController.navigate("home")
+                }
+            }
+            wordPressViewModel.onNotificationTargetHandled()
+        }
+    }
+
     val currentActivity = context as? Activity
     val currentIntent = currentActivity?.intent
     LaunchedEffect(currentIntent) {
         val fcmType = currentIntent?.getStringExtra("fcm_type")
         val fcmSeason = currentIntent?.getStringExtra("fcm_season")
         val fcmUrl = currentIntent?.getStringExtra("fcm_url")
+        val postUrl = currentIntent?.getStringExtra("post_url") ?: fcmUrl
+        val fcmChannel = currentIntent?.getStringExtra("fcm_channel")
 
-        if (fcmType != null) {
+        if (!postUrl.isNullOrEmpty()) {
+            val encodedUrl = Uri.encode(postUrl)
+            when (fcmChannel) {
+                "tval" -> navController.navigate("postdetailByUrl?url=$encodedUrl&isTval=true")
+                "app" -> navController.navigate("postdetailByUrl?url=$encodedUrl&isAppx=true")
+                else -> navController.navigate("postdetailByUrl?url=$encodedUrl")
+            }
+            currentIntent?.removeExtra("post_url")
+            currentIntent?.removeExtra("fcm_url")
+            currentIntent?.removeExtra("fcm_channel")
+        } else if (fcmType != null) {
             if (!fcmSeason.isNullOrEmpty()) {
                 pbbViewModel.selectSeason(fcmSeason)
             }
@@ -820,6 +923,52 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
             currentIntent.removeExtra("fcm_type")
             currentIntent.removeExtra("fcm_season")
             currentIntent.removeExtra("fcm_url")
+        }
+    }
+
+    val notificationsEnabled by wordPressViewModel.notificationsEnabled.collectAsState()
+
+    // Sync system notifications permission state
+    LaunchedEffect(Unit) {
+        val systemEnabled = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+        if (!systemEnabled && notificationsEnabled) {
+            wordPressViewModel.setNotificationsEnabled(false)
+        }
+    }
+
+    val onNotificationsToggle: () -> Unit = {
+        val activity = context as? MainActivity
+        val systemEnabled = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+        if (!notificationsEnabled || !systemEnabled) {
+            if (!systemEnabled) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    activity?.requestNotificationPermission()
+                } else {
+                    try {
+                        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                        } else {
+                            Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                }
+            } else {
+                wordPressViewModel.setNotificationsEnabled(true)
+            }
+        } else {
+            wordPressViewModel.setNotificationsEnabled(false)
         }
     }
 
@@ -856,22 +1005,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    onNotificationsToggle = {
-                        val activity = context as? MainActivity
-                        if (!notificationsEnabled) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                activity?.requestNotificationPermission()
-                            } else {
-                                wordPressViewModel.setNotificationsEnabled(true)
-                                // Auto-subscribe on older devices (no permission prompt needed)
-                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-                            }
-                        } else {
-                            wordPressViewModel.setNotificationsEnabled(false)
-                            // Auto-unsubscribe when toggling OFF
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
-                        }
-                    },
+                    onNotificationsToggle = onNotificationsToggle,
                     onContactUsClick = {
                         navController.navigate("contactus")
                     },
@@ -887,22 +1021,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    onNotificationsToggle = {
-                        val activity = context as? MainActivity
-                        if (!notificationsEnabled) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                activity?.requestNotificationPermission()
-                            } else {
-                                wordPressViewModel.setNotificationsEnabled(true)
-                                // Auto-subscribe on older devices (no permission prompt needed)
-                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-                            }
-                        } else {
-                            wordPressViewModel.setNotificationsEnabled(false)
-                            // Auto-unsubscribe when toggling OFF
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
-                        }
-                    },
+                    onNotificationsToggle = onNotificationsToggle,
                     onContactUsClick = {
                         navController.navigate("contactus")
                     },
@@ -918,22 +1037,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize, 
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    onNotificationsToggle = {
-                        val activity = context as? MainActivity
-                        if (!notificationsEnabled) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                activity?.requestNotificationPermission()
-                            } else {
-                                wordPressViewModel.setNotificationsEnabled(true)
-                                // Auto-subscribe on older devices (no permission prompt needed)
-                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-                            }
-                        } else {
-                            wordPressViewModel.setNotificationsEnabled(false)
-                            // Auto-unsubscribe when toggling OFF
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
-                        }
-                    },
+                    onNotificationsToggle = onNotificationsToggle,
                     onContactUsClick = {
                         navController.navigate("contactus")
                     },
@@ -949,22 +1053,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    onNotificationsToggle = {
-                        val activity = context as? MainActivity
-                        if (!notificationsEnabled) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                activity?.requestNotificationPermission()
-                            } else {
-                                wordPressViewModel.setNotificationsEnabled(true)
-                                // Auto-subscribe on older devices (no permission prompt needed)
-                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-                            }
-                        } else {
-                            wordPressViewModel.setNotificationsEnabled(false)
-                            // Auto-unsubscribe when toggling OFF
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
-                        }
-                    },
+                    onNotificationsToggle = onNotificationsToggle,
                     onContactUsClick = {
                         navController.navigate("contactus")
                     },
@@ -981,20 +1070,7 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     windowSize = windowSize,
                     isDarkMode = isDarkMode,
                     notificationsEnabled = notificationsEnabled,
-                    onNotificationsToggle = {
-                        val activity = context as? MainActivity
-                        if (!notificationsEnabled) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                activity?.requestNotificationPermission()
-                            } else {
-                                wordPressViewModel.setNotificationsEnabled(true)
-                                FirebaseMessaging.getInstance().subscribeToTopic("new_posts")
-                            }
-                        } else {
-                            wordPressViewModel.setNotificationsEnabled(false)
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic("new_posts")
-                        }
-                    },
+                    onNotificationsToggle = onNotificationsToggle,
                     onContactUsClick = {
                         navController.navigate("contactus")
                     },
@@ -1029,6 +1105,31 @@ fun WordPressApp(wordPressViewModel: WordPressViewModel = viewModel()) {
                     wordPressViewModel = wordPressViewModel,
                     navController = navController,
                     postId = postId,
+                    postUrl = null,
+                    isDarkMode = isDarkMode,
+                    isTVAL = isTval,
+                    isAppx = isAppx,
+                    isFullscreen = isFullscreen,
+                    onFullscreenToggle = { isFullscreen = it }
+                )
+            }
+            composable(
+                "postdetailByUrl?url={url}&isTval={isTval}&isAppx={isAppx}",
+                arguments = listOf(
+                    navArgument("url") { type = NavType.StringType },
+                    navArgument("isTval") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("isAppx") { type = NavType.BoolType; defaultValue = false }
+                )
+            ) { backStackEntry ->
+                val encodedUrl = backStackEntry.arguments?.getString("url") ?: ""
+                val url = Uri.decode(encodedUrl)
+                val isTval = backStackEntry.arguments?.getBoolean("isTval") ?: false
+                val isAppx = backStackEntry.arguments?.getBoolean("isAppx") ?: false
+                PostDetailRoute(
+                    wordPressViewModel = wordPressViewModel,
+                    navController = navController,
+                    postId = null,
+                    postUrl = url,
                     isDarkMode = isDarkMode,
                     isTVAL = isTval,
                     isAppx = isAppx,
@@ -1073,6 +1174,7 @@ fun PostDetailRoute(
     wordPressViewModel: WordPressViewModel,
     navController: NavController,
     postId: Int?,
+    postUrl: String? = null,
     isDarkMode: Boolean,
     isTVAL: Boolean = false,
     isAppx: Boolean = false,
@@ -1081,9 +1183,11 @@ fun PostDetailRoute(
 ) {
     val context = LocalContext.current
 
-    LaunchedEffect(postId, isTVAL, isAppx) {
+    LaunchedEffect(postId, postUrl, isTVAL, isAppx) {
         if (postId != null) {
             wordPressViewModel.fetchPost(postId, isTval = isTVAL, isAppx = isAppx)
+        } else if (!postUrl.isNullOrEmpty()) {
+            wordPressViewModel.fetchPostByUrl(postUrl, isTval = isTVAL, isAppx = isAppx)
         }
     }
     val detailUiState by wordPressViewModel.detailUiState.collectAsState()
