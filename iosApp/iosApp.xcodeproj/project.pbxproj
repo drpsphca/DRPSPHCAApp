@@ -1,8 +1,9 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
+	classes = {
+	};
 	objectVersion = 56;
-	classes = {};
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -20,7 +21,8 @@
 		A30000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -63,8 +65,10 @@
 				A30000000000000000000001 /* Frameworks */,
 				A30000000000000000000004 /* Resources */,
 			);
-			buildRules = ();
-			dependencies = ();
+			buildRules = (
+			);
+			dependencies = (
+			);
 			name = iosApp;
 			productName = iosApp;
 			productReference = A20000000000000000000003 /* iosApp.app */;
@@ -88,12 +92,17 @@
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
+			knownRegions = (
+				en,
+				Base,
+			);
 			mainGroup = A40000000000000000000001;
 			productRefGroup = A40000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A50000000000000000000001 /* iosApp */,);
+			targets = (
+				A50000000000000000000001 /* iosApp */,
+			);
 		};
 /* End PBXProject section */
 
@@ -101,10 +110,33 @@
 		A30000000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A30000000000000000000002 /* Gradle Embed Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Gradle Embed Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\" && ./gradlew :shared:embedAndSignAppleFrameworkForXcode";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A30000000000000000000003 /* Sources */ = {
@@ -118,25 +150,8 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		A30000000000000000000002 /* Gradle Embed Framework */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = ();
-			inputFileListPaths = ();
-			inputPaths = ();
-			name = "Gradle Embed Framework";
-			outputFileListPaths = ();
-			outputPaths = ();
-			runOnlyForDeploymentPostprocessing = 0;
-			alwaysOutOfDate = 1;
-			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/..\" && ./gradlew :shared:embedAndSignAppleFrameworkForXcode";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin XCBuildConfiguration section */
-		A80000000000000000000001 /* Debug project configuration */ = {
+		A80000000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -146,7 +161,7 @@
 			};
 			name = Debug;
 		};
-		A80000000000000000000002 /* Release project configuration */ = {
+		A80000000000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -156,7 +171,7 @@
 			};
 			name = Release;
 		};
-		A80000000000000000000003 /* Debug target configuration */ = {
+		A80000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
@@ -175,7 +190,7 @@
 			};
 			name = Debug;
 		};
-		A80000000000000000000004 /* Release target configuration */ = {
+		A80000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
@@ -200,8 +215,8 @@
 		A70000000000000000000001 /* Build configuration list for PBXProject "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A80000000000000000000001 /* Debug project configuration */,
-				A80000000000000000000002 /* Release project configuration */,
+				A80000000000000000000001 /* Debug */,
+				A80000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -209,8 +224,8 @@
 		A70000000000000000000002 /* Build configuration list for PBXNativeTarget "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A80000000000000000000003 /* Debug target configuration */,
-				A80000000000000000000004 /* Release target configuration */,
+				A80000000000000000000003 /* Debug */,
+				A80000000000000000000004 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
