@@ -10,6 +10,8 @@
 		A10000000000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* ContentView.swift */; };
 		A10000000000000000000002 /* iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* iosApp.swift */; };
 		A10000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Assets.xcassets */; };
+		A10000000000000000000005 /* PBBNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PBBNotificationDelegate.swift */; };
+		A10000000000000000000006 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A90000000000000000000001 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +19,7 @@
 		A20000000000000000000002 /* iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iosApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000000000000000000005 /* PBBNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PBBNotificationDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -24,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000006 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,6 +48,7 @@
 				A20000000000000000000001 /* ContentView.swift */,
 				A20000000000000000000002 /* iosApp.swift */,
 				A20000000000000000000004 /* Assets.xcassets */,
+				A40000000000000000000004 /* PBBUpdates */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -54,6 +59,14 @@
 				A20000000000000000000003 /* iosApp.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* PBBUpdates */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* PBBNotificationDelegate.swift */,
+			);
+			path = PBBUpdates;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
