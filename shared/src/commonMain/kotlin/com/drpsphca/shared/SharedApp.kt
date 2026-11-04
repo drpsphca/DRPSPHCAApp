@@ -190,6 +190,11 @@ fun SharedApp() {
 
     var selectedSection by rememberSaveable { mutableIntStateOf(0) }
     var selectedArticle by remember { mutableStateOf<Article?>(null) }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+    var taggedArticles by remember { mutableStateOf<List<Article>>(emptyList()) }
+    var isTagLoading by remember { mutableStateOf(false) }
+    var tagError by remember { mutableStateOf<String?>(null) }
+    var tagRequestId by remember { mutableIntStateOf(0) }
     var biteSized by rememberSaveable { mutableStateOf(false) }
     var pbbTab by rememberSaveable { mutableStateOf(PbbTab.OVERVIEW) }
     var pbbSection by rememberSaveable { mutableStateOf(PbbSection.LIVE) }
@@ -244,6 +249,44 @@ fun SharedApp() {
             }
         }
     }
+
+    fun openTag(tag: String) {
+        val requestId = ++tagRequestId
+        selectedSection = 1
+        biteSized = false
+        selectedArticle = null
+        selectedTag = tag
+        taggedArticles = emptyList()
+        isTagLoading = true
+        tagError = null
+        searchQuery = ""
+        searchVisible = false
+        searchSubmitted = false
+        searchRequestId++
+        searchLoading = false
+        searchError = null
+        searchResults = emptyList()
+        scope.launch {
+            try {
+                val results = repository.wordpressArticlesByTag(
+                    WordPressEndpoints.main,
+                    categorySlug = "blog",
+                    tagName = tag,
+                )
+                if (requestId == tagRequestId) taggedArticles = results
+            } catch (exception: Exception) {
+                if (requestId == tagRequestId) {
+                    tagError = exception.message
+                        ?: "Unable to load posts for this tag. Check your connection and try again."
+                }
+            } finally {
+                if (requestId == tagRequestId) isTagLoading = false
+            }
+        }
+    }
+
+    val onTagClick: ((String) -> Unit)? =
+        if (platform() == "iOS") ({ tag -> openTag(tag) }) else null
 
     fun loadContent(index: Int = selectedSection) {
         scope.launch {
@@ -333,6 +376,7 @@ fun SharedApp() {
                     searchVisible = false
                     searchSubmitted = false
                     selectedArticle = null
+                    selectedTag = null
                     route.url?.let { postUrl ->
                         scope.launch {
                             try {
@@ -410,13 +454,12 @@ fun SharedApp() {
                         color = MaterialTheme.colorScheme.surface,
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp),
+                            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 0.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             TextButton(
                                 onClick = { selectedArticle = null },
-                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 0.dp),
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                 Text(
@@ -430,6 +473,7 @@ fun SharedApp() {
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                            Spacer(Modifier.weight(1f))
                             IconButton(
                                 onClick = {
                                     selectedArticle?.let { shareArticle(it.title, it.url) }
@@ -587,6 +631,8 @@ fun SharedApp() {
                                     )
                                     .clickable {
                                         selectedArticle = null
+                                        selectedTag = null
+                                        tagRequestId++
                                         selectedSection = index
                                         searchQuery = ""
                                         searchVisible = false
@@ -633,6 +679,40 @@ fun SharedApp() {
                             onBack = { selectedArticle = null },
                             showBackButton = platform() != "iOS",
                         )
+                    } else if (selectedTag != null) {
+                        Column(Modifier.fillMaxSize()) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        selectedTag = null
+                                        refreshCount++
+                                    },
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Blog")
+                                    Text("Blog")
+                                }
+                                Text(
+                                    "Posts tagged \"${selectedTag!!}\"",
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            ContentBody(
+                                isLoading = isTagLoading,
+                                error = tagError,
+                                articles = taggedArticles,
+                                onRetry = { selectedTag?.let(::openTag) },
+                                onArticleClick = { selectedArticle = it },
+                                emptyMessage = "No blog posts found for this tag.",
+                                columns = articleColumns,
+                                onTagClick = onTagClick,
+                            )
+                        }
                     } else if (searchSubmitted) {
                         Column(Modifier.fillMaxSize()) {
                             SectionHeading("Search Results", darkMode)
@@ -650,6 +730,7 @@ fun SharedApp() {
                                 onRetry = { submitSearch() },
                                 onArticleClick = { selectedArticle = it },
                                 emptyMessage = "No posts found for \"$searchQuery\".",
+                                onTagClick = onTagClick,
                             )
                         }
                     } else {
@@ -668,6 +749,7 @@ fun SharedApp() {
                                     onArticleClick = { selectedArticle = it },
                                     emptyMessage = "No posts found.",
                                     columns = articleColumns,
+                                    onTagClick = onTagClick,
                                 )
                             }
                             selectedSection == 4 -> {
@@ -700,6 +782,7 @@ fun SharedApp() {
                                     onRetry = { refreshCount++ },
                                     onArticleClick = { selectedArticle = it },
                                     articleColumns = articleColumns,
+                                    onTagClick = onTagClick,
                                 )
                             }
                             selectedSection == 0 -> HomeContent(
@@ -711,12 +794,14 @@ fun SharedApp() {
                                 onArticleClick = { selectedArticle = it },
                                 isDarkMode = darkMode,
                                 articleColumns = articleColumns,
+                                onTagClick = onTagClick,
                             )
                             else -> ContentBody(
                                 isLoading, error, currentArticles,
                                 onRetry = { refreshCount++ },
                                 onArticleClick = { selectedArticle = it },
                                 emptyMessage = "No content found.",
+                                onTagClick = onTagClick,
                             )
                         }
                     }
@@ -821,6 +906,7 @@ private fun HomeContent(
     onArticleClick: (Article) -> Unit,
     isDarkMode: Boolean,
     articleColumns: Int,
+    onTagClick: ((String) -> Unit)?,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(articleColumns),
@@ -835,7 +921,9 @@ private fun HomeContent(
             item(span = { GridItemSpan(maxLineSpan) }) { LoadingIndicator() }
         } else {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                newsletters.firstOrNull()?.let { ArticleCard(it, onArticleClick, showExcerpt = false) }
+                newsletters.firstOrNull()?.let {
+                    ArticleCard(it, onArticleClick, showExcerpt = false, onTagClick = onTagClick)
+                }
                     ?: Text("No newsletters available.", Modifier.padding(16.dp))
             }
         }
@@ -845,7 +933,9 @@ private fun HomeContent(
         if (error != null && posts.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) { ErrorContent(error, onRetry) }
         } else {
-            items(posts.take(10), key = { it.url }) { ArticleCard(it, onArticleClick) }
+            items(posts.take(10), key = { it.url }) {
+                ArticleCard(it, onArticleClick, onTagClick = onTagClick)
+            }
         }
         item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(16.dp)) }
     }
@@ -860,6 +950,7 @@ private fun ContentBody(
     onArticleClick: (Article) -> Unit,
     emptyMessage: String,
     columns: Int = 1,
+    onTagClick: ((String) -> Unit)? = null,
 ) {
     when {
         isLoading && articles.isEmpty() -> LoadingIndicator()
@@ -871,7 +962,9 @@ private fun ContentBody(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(articles, key = { it.url }) { ArticleCard(it, onArticleClick) }
+            items(articles, key = { it.url }) {
+                ArticleCard(it, onArticleClick, onTagClick = onTagClick)
+            }
         }
     }
 }
@@ -892,12 +985,14 @@ private fun PbbContent(
     onRetry: () -> Unit,
     onArticleClick: (Article) -> Unit,
     articleColumns: Int,
+    onTagClick: ((String) -> Unit)?,
 ) {
     if (section == PbbSection.ANNOUNCEMENTS) {
         ContentBody(
             isLoading, error, announcements, onRetry, onArticleClick,
             emptyMessage = "No announcements found.",
             columns = articleColumns,
+            onTagClick = onTagClick,
         )
         return
     }
@@ -1633,6 +1728,7 @@ private fun ArticleCard(
     onClick: (Article) -> Unit,
     showExcerpt: Boolean = true,
     isDarkMode: Boolean = isSystemInDarkTheme(),
+    onTagClick: ((String) -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
@@ -1673,9 +1769,15 @@ private fun ArticleCard(
                     if (showExcerpt && article.excerpt.isNotBlank()) {
                         Spacer(Modifier.height(14.dp))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        article.tags.take(4).forEach { tag ->
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        article.tags.forEach { tag ->
                             Surface(
+                                modifier = Modifier.clickable(enabled = onTagClick != null) {
+                                    onTagClick?.invoke(tag)
+                                },
                                 shape = RoundedCornerShape(9.dp),
                                 color = Color(0xFF0181E5),
                             ) {
