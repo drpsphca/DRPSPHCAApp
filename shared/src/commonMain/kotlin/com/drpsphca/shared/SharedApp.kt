@@ -123,6 +123,7 @@ private val PhcaNavy = Color(0xFF17345C)
 private val PhcaGreen = Color(0xFF3C8E3E)
 private val PhcaBlue = Color(0xFF025CA1)
 private val PhcaGold = Color(0xFFBBA00C)
+private val notificationRouteJson = Json { ignoreUnknownKeys = true }
 internal val LocalPhcaImageLoader = staticCompositionLocalOf<ImageLoader> {
     error("The shared app image loader was not provided.")
 }
@@ -279,8 +280,7 @@ fun SharedApp() {
             val payload = consumePendingNotificationRoute()
             if (payload != null) {
                 try {
-                    val route = Json { ignoreUnknownKeys = true }
-                        .decodeFromString<PendingNotificationRoute>(payload)
+                    val route = notificationRouteJson.decodeFromString<PendingNotificationRoute>(payload)
                     val routeText = listOfNotNull(route.topic, route.type, route.channel)
                         .joinToString(" ")
                         .lowercase()

@@ -86,7 +86,7 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
                     NSLog("Firebase topic subscription failed for %@: %@", topic, error.localizedDescription)
                 }
             }
-            return true
         }
+        return true
     }
 }

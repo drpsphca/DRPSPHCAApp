@@ -14,11 +14,15 @@ the PBB JSON API supplies PBB data. Articles are rendered with native Compose
 text and controls, not a web view. The configured WordPress API keys are sent
 as Bearer tokens, matching the Android client. Because they are compiled into
 the shared framework, they can be extracted from a distributed app; restrict
-their permissions and prefer a server-side proxy for production. Android-only
-services such as push notifications, home-screen widgets, and store updates
-are not included in the
-iOS app. The Android font files, logos, navigation drawables, launcher
-artwork, tag background, and app strings are available from shared Compose
-resources. Android-only resource declarations (such as backup rules, widget
-configuration, and network security configuration) are not copied because
-iOS uses separate platform equivalents.
+their permissions and prefer a server-side proxy for production. The iOS
+target includes Firebase Messaging integration for PBB announcements,
+nominations, and evictions, plus optional PHCA feed topics. To activate
+Firebase, add the real `GoogleService-Info.plist` for Firebase project
+`device-streaming-bafa1723` and bundle ID `com.drpsphca.app.ios` to the app
+target. The configuration file is intentionally not checked in because it
+must come from the Firebase project owner. Push delivery also requires a valid
+APNs key and matching signing/provisioning configuration. The Android font
+files, logos, navigation drawables, launcher artwork, tag background, and app
+strings are available from shared Compose resources. Android-only resource
+declarations (such as backup rules, widget configuration, and network security
+configuration) are not copied because iOS uses separate platform equivalents.
