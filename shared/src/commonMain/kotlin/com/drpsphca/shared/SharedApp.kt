@@ -1196,7 +1196,7 @@ private fun PbbContent(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                     ) {
                                         Text(
-                                            pack?.housemates.findHousemateName(entry.id)
+                                            seasonPack.housemates.findHousemateName(entry.id)
                                                 .ifBlank { entry.name ?: "Housemate" },
                                         )
                                         entry.label?.let {
@@ -1238,9 +1238,7 @@ private fun PbbContent(
                     ) { housemate ->
                         HousemateCard(
                             housemate,
-                            effectiveSeason?.let {
-                                housematePhotoUrl(it, seasonPack.photos[housemate.id])
-                            },
+                            housematePhotoUrl(effectiveSeason, seasonPack.photos[housemate.id]),
                         )
                     }
                 }
@@ -1253,7 +1251,7 @@ private fun PbbContent(
                     items(pack.housemates, key = { it.id }) { housemate ->
                         HousemateCard(
                             housemate,
-                            effectiveSeason?.let { housematePhotoUrl(it, pack.photos[housemate.id]) },
+                            housematePhotoUrl(effectiveSeason, pack.photos[housemate.id]),
                         )
                     }
                 }
@@ -1285,7 +1283,7 @@ private fun PbbContent(
                         tally.entries.forEach { entry ->
                             PbbPersonRow(
                                 name = pack?.housemates.findHousemateName(entry.id)
-                                    ?.takeUnless { it == "Housemate" } ?: entry.name ?: "Housemate",
+                                    .takeUnless { it == "Housemate" } ?: entry.name ?: "Housemate",
                                 photoUrl = entry.id?.let { id ->
                                     effectiveSeason?.let { season ->
                                         housematePhotoUrl(season, pack?.photos?.get(id))
@@ -1323,7 +1321,7 @@ private fun PbbContent(
                         eviction.nominated.forEach { nominee ->
                             PbbPersonRow(
                                 name = pack?.housemates.findHousemateName(nominee.id)
-                                    ?.takeUnless { it == "Housemate" }
+                                    .takeUnless { it == "Housemate" }
                                     ?: nominee.label ?: "Housemate",
                                 photoUrl = nominee.id?.let { id ->
                                     effectiveSeason?.let { season ->
@@ -1495,7 +1493,7 @@ private fun PbbEvictionDeskCard(pack: SeasonPack, eviction: Eviction?, seasonId:
                 !eviction?.resultsAsOf.isNullOrBlank()
             ) {
                 Text(
-                    "Voting results as of ${eviction?.resultsAsOf}:",
+                    "Voting results as of ${eviction.resultsAsOf}:",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
