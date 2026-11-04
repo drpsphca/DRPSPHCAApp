@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.ContactSupport
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +113,9 @@ import com.drpsphca.shared.resources.phca_gilroy_regular
 import com.drpsphca.shared.resources.tag_background
 import com.drpsphca.shared.resources.tvallogo
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlin.math.roundToInt
 
 private val PhcaNavy = Color(0xFF17345C)
@@ -171,7 +177,9 @@ fun SharedApp() {
     var biteSized by rememberSaveable { mutableStateOf(false) }
     var pbbTab by rememberSaveable { mutableStateOf(PbbTab.OVERVIEW) }
     var pbbSection by rememberSaveable { mutableStateOf(PbbSection.LIVE) }
-    var selectedSeason by rememberSaveable { mutableStateOf("") }
+    val persistedPbbSeason = loadPersistedPbbSeason()
+    var selectedSeason by rememberSaveable { mutableStateOf(persistedPbbSeason.orEmpty()) }
+    var jumpToEvictions by remember { mutableStateOf(false) }
     var searchVisible by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchSubmitted by remember { mutableStateOf(false) }
@@ -246,10 +254,15 @@ fun SharedApp() {
                         val collab3Posts = repository.wordpressArticles(WordPressEndpoints.main, "collab3")
                         board = loadedBoard
                         pbbAnnouncements = mergePbbAnnouncements(apiPosts, collab3Posts)
-                        if (selectedSeason.isBlank()) {
-                            selectedSeason = board?.seasons?.keys
-                                ?.sortedWith(compareBy({ if (it == "collab3") 0 else if (it == "gen11") 1 else 2 }, { it }))
-                                ?.firstOrNull().orEmpty()
+                        val availableSeasonIds = loadedBoard.seasonList
+                            .filter { it.available && it.id in loadedBoard.seasons }
+                            .map { it.id }
+                            .ifEmpty {
+                                loadedBoard.seasons.filterValues { it.season?.available == true }.keys.toList()
+                            }
+                        if (selectedSeason !in availableSeasonIds) {
+                            selectedSeason = availableSeasonIds.firstOrNull().orEmpty()
+                            if (selectedSeason.isNotBlank()) persistPbbSeason(selectedSeason)
                         }
                     }
                 }
@@ -263,6 +276,83 @@ fun SharedApp() {
 
     LaunchedEffect(selectedSection, refreshCount, if (selectedSection == 1) biteSized else null) {
         loadContent()
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val payload = consumePendingNotificationRoute()
+            if (payload != null) {
+                try {
+                    val route = Json { ignoreUnknownKeys = true }
+                        .decodeFromString<PendingNotificationRoute>(payload)
+                    val routeText = listOfNotNull(route.topic, route.type, route.channel)
+                        .joinToString(" ")
+                        .lowercase()
+                    val channel = route.channel?.lowercase().orEmpty()
+                    when {
+                        "eviction" in routeText || "nomination" in routeText -> {
+                            selectedSection = 4
+                            pbbSection = PbbSection.LIVE
+                            pbbTab = PbbTab.NOMINATIONS
+                            jumpToEvictions = "eviction" in routeText
+                            route.season?.let { season ->
+                                selectedSeason = season
+                                persistPbbSeason(season)
+                            }
+                        }
+                        "announcement" in routeText || channel == "pbb" -> {
+                            selectedSection = 4
+                            pbbSection = PbbSection.ANNOUNCEMENTS
+                            route.season?.let { season ->
+                                selectedSeason = season
+                                persistPbbSeason(season)
+                            }
+                        }
+                        channel == "blog" -> {
+                            selectedSection = 1
+                            biteSized = false
+                        }
+                        channel == "newsletter" -> selectedSection = 2
+                        channel == "tval" -> selectedSection = 3
+                        channel == "app" -> {
+                            selectedSection = 1
+                            biteSized = true
+                        }
+                        else -> selectedSection = 4
+                    }
+                    searchVisible = false
+                    searchSubmitted = false
+                    selectedArticle = null
+                    route.url?.let { postUrl ->
+                        scope.launch {
+                            try {
+                                val article = when (channel) {
+                                    "blog" -> repository.wordpressArticleByUrl(WordPressEndpoints.main, postUrl)
+                                    "newsletter" -> repository.wordpressArticleByUrl(WordPressEndpoints.main, postUrl)
+                                    "tval" -> repository.wordpressArticleByUrl(WordPressEndpoints.tval, postUrl)
+                                    "app" -> repository.wordpressArticleByUrl(WordPressEndpoints.app, postUrl)
+                                    "pbb" -> repository.pbbAnnouncements().firstOrNull { it.url == postUrl }
+                                    else -> if ("pbbupdates.drpsphca.com" in postUrl) {
+                                        repository.pbbAnnouncements().firstOrNull { it.url == postUrl }
+                                    } else null
+                                }
+                                if (article != null) {
+                                    selectedArticle = article
+                                } else {
+                                    error = "The notification post could not be found."
+                                }
+                            } catch (exception: Exception) {
+                                error = exception.message
+                                    ?: "Unable to open the notification. Check your connection and try again."
+                            }
+                        }
+                    }
+                } catch (exception: Exception) {
+                    error = exception.message ?: "The notification could not be opened."
+                }
+            }
+            delay(500)
+        }
     }
 
     val currentArticles = if (selectedSection == 4 && pbbSection == PbbSection.ANNOUNCEMENTS) {
@@ -527,8 +617,13 @@ fun SharedApp() {
                                 section = pbbSection,
                                 board = board,
                                 selectedSeason = selectedSeason,
-                                onSeasonSelected = { selectedSeason = it },
+                                onSeasonSelected = {
+                                    selectedSeason = it
+                                    persistPbbSeason(it)
+                                },
                                 onTabSelected = { pbbTab = it },
+                                jumpToEvictions = jumpToEvictions,
+                                onEvictionJumpCompleted = { jumpToEvictions = false },
                                 announcements = currentArticles,
                                 isLoading = isLoading,
                                 error = error,
@@ -574,23 +669,24 @@ private fun FilterButton(label: String, selected: Boolean, onClick: () -> Unit) 
 
 @Composable
 private fun PbbFilterButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(
-            onClick = onClick,
-            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = PhcaGold,
-                contentColor = Color.White,
-            ),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+    val darkMode = isSystemInDarkTheme()
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) PhcaGold else if (darkMode) Color.DarkGray else Color.LightGray,
+        contentColor = if (selected) Color.Black else if (darkMode) Color.White else Color.Black,
+        modifier = Modifier.height(36.dp),
+    ) {
+        Box(
+            Modifier.padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(label, maxLines = 1)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-        ) {
-            Text(label, maxLines = 1)
+            Text(
+                label,
+                maxLines = 1,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -699,6 +795,8 @@ private fun PbbContent(
     selectedSeason: String,
     onSeasonSelected: (String) -> Unit,
     onTabSelected: (PbbTab) -> Unit,
+    jumpToEvictions: Boolean,
+    onEvictionJumpCompleted: () -> Unit,
     announcements: List<Article>,
     isLoading: Boolean,
     error: String?,
@@ -720,37 +818,67 @@ private fun PbbContent(
         ErrorContent(error, onRetry)
         return
     }
-    val seasonKeys = board?.seasons.orEmpty()
-        .filterValues { it.season?.available == true }
-        .keys
-        .sortedWith(compareBy<String> {
-            when (it.lowercase()) {
-                "collab3" -> 0
-                "gen11" -> 1
-                else -> 2
-            }
-        }.thenBy { it })
+    val seasonKeys = board?.seasonList
+        ?.filter { it.available && it.id in board?.seasons.orEmpty() }
+        ?.map { it.id }
+        ?.ifEmpty { null }
+        ?: board?.seasons.orEmpty()
+            .filterValues { it.season?.available == true }
+            .keys.toList()
     val effectiveSeason = selectedSeason.takeIf { it in seasonKeys } ?: seasonKeys.firstOrNull()
     val pack = effectiveSeason?.let { board?.seasons?.get(it) }
+    val sortedTallies = pack?.nominationTallies.orEmpty()
+        .sortedWith(compareByDescending<NominationTally> { it.week ?: it.id ?: 0 })
+    val sortedEvictions = pack?.evictions.orEmpty()
+        .sortedWith(compareByDescending<Eviction> { it.week ?: 0 }.thenByDescending { it.day ?: 0 })
+    val sortedTasks = pack?.weeklyTasks.orEmpty()
+        .sortedWith(compareByDescending<WeeklyTask> { it.week ?: 0 }.thenByDescending { it.day ?: 0 })
+    val latestEviction = sortedEvictions.firstOrNull()
+    val latestTally = sortedTallies.firstOrNull()
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var seasonMenuExpanded by remember { mutableStateOf(false) }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LaunchedEffect(jumpToEvictions, tab, sortedTallies.size) {
+        if (jumpToEvictions && tab == PbbTab.NOMINATIONS && sortedTallies.isNotEmpty()) {
+            listState.animateScrollToItem(4 + sortedTallies.size)
+            onEvictionJumpCompleted()
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize(), state = listState) {
         item {
             if (effectiveSeason != null) {
                 Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                    OutlinedButton(
-                        onClick = { seasonMenuExpanded = true },
-                        modifier = Modifier.fillMaxWidth(),
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { seasonMenuExpanded = true },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceVariant
+                            else Color(0xFFF2F2F2),
+                        ),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        Text(
-                            seasonLabel(effectiveSeason, pack?.season),
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Start,
-                            color = PhcaGold,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = "Select season")
+                        Row(
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(
+                                    "PBB Season",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    seasonLabel(effectiveSeason, pack?.season, board?.seasonList),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Icon(
+                                Icons.Filled.ArrowDropDown,
+                                contentDescription = "Select Season",
+                                tint = PhcaGold,
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = seasonMenuExpanded,
@@ -760,7 +888,7 @@ private fun PbbContent(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        seasonLabel(season, board?.seasons?.get(season)?.season),
+                                        seasonLabel(season, board?.seasons?.get(season)?.season, board?.seasonList),
                                         fontWeight = if (season == effectiveSeason) FontWeight.Bold
                                         else FontWeight.Normal,
                                     )
@@ -792,69 +920,95 @@ private fun PbbContent(
             item {
                 pack?.season?.let { info ->
                     PbbPanel("Season Overview", Color(0xFFE8F5E9)) {
-                        Text(info.title ?: seasonLabel(effectiveSeason, info), fontWeight = FontWeight.Bold)
+                        Text(
+                            info.title ?: seasonLabel(effectiveSeason, info, board?.seasonList),
+                            fontWeight = FontWeight.Bold,
+                        )
                         Text(
                             listOfNotNull(
                                 info.status?.let(::statusLabel),
                                 info.currentWeek?.let { "Week $it" },
                                 info.currentDay?.let { "Day $it" },
-                                info.days?.let { "$it days" },
                             ).joinToString(" • ").ifBlank { "Season details" },
                         )
                         listOfNotNull(
-                            info.premiere?.let { "Premiere: $it" },
-                            info.finale?.let { "Finale: $it" },
-                            info.updatedAt?.let { "Updated: $it" },
+                            "Schedule: ${info.premiere ?: "TBA"} — ${info.finale ?: "Ongoing"}",
+                            info.days?.let { "$it days" },
                         ).takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" • ")) }
                         info.winner?.let { Text("Winner: ${pack.housemates.findHousemateName(it)}") }
-                        if (info.hosts.isNotEmpty()) Text("Hosts: ${info.hosts.joinToString()}")
-                        info.notes?.takeIf { it.isNotBlank() }?.let { Text(it.trim()) }
                     }
                 }
             }
         }
         when (tab) {
             PbbTab.OVERVIEW -> {
-                pack?.evictions?.lastOrNull()?.let { eviction ->
+                pack?.let { seasonPack ->
                     item {
-                        PbbPanel("Latest Eviction", Color(0xFFFFF3E0)) {
-                            Text("Week ${eviction.week ?: "—"}${eviction.date?.let { " • $it" } ?: ""}")
-                            eviction.evicted.forEach {
-                                Text("Evicted: ${pack.housemates.findHousemateName(it)}")
-                            }
-                            eviction.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
-                        }
+                        PbbEvictionDeskCard(seasonPack, latestEviction, effectiveSeason)
                     }
                 }
-                pack?.nominationTallies?.lastOrNull()?.let { tally ->
+                latestTally?.let { tally ->
                     item {
-                        PbbPanel("Latest Nominations", Color(0xFFE1F5FE)) {
-                            Text(tally.title ?: "Week ${tally.week ?: "—"}")
-                            tally.entries.filter { it.state == "nominated" }.forEach { entry ->
-                                Text(
-                                    "${pack.housemates.findHousemateName(entry.id)}" +
-                                        (entry.label?.let { " • $it" } ?: ""),
-                                )
-                            }
+                        PbbPanel(
+                            "Latest Nomination Tally: ${tally.title ?: "Week ${tally.week ?: 1}"}",
+                            Color(0xFFE1F5FE),
+                        ) {
                             tally.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                            tally.entries.filter { it.state.equals("nominated", ignoreCase = true) }
+                                .forEach { entry ->
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(
+                                            pack?.housemates.findHousemateName(entry.id)
+                                                .ifBlank { entry.name ?: "Housemate" },
+                                        )
+                                        entry.label?.let {
+                                            Text(it, color = PhcaGold, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
                         }
                     }
                 }
-                pack?.weeklyTasks?.lastOrNull()?.let { task ->
+                if (sortedTasks.isNotEmpty()) {
                     item {
-                        PbbPanel("Latest Weekly Task", Color(0xFFF3E5F5)) {
-                            Text(task.title ?: "Week ${task.week ?: "—"}", fontWeight = FontWeight.SemiBold)
-                            task.summary?.let { Text(it) }
-                            task.status?.let { PbbStatusChip(it) }
+                        PbbPanel("Weekly Tasks", Color(0xFFF3E5F5)) {
+                            sortedTasks.take(4).forEach { task ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            task.title ?: "Task Week ${task.week?.toString().orEmpty()}",
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        task.week?.let { Text("Week $it", style = MaterialTheme.typography.bodySmall) }
+                                    }
+                                    PbbStatusChip(task.status ?: "pending")
+                                }
+                            }
                         }
                     }
                 }
-                item { SectionHeading("Housemates", centered = true) }
-                items(pack?.housemates.orEmpty().take(6), key = { it.id }) { housemate ->
-                    HousemateCard(
-                        housemate,
-                        effectiveSeason?.let { housematePhotoUrl(it, pack?.photos?.get(housemate.id)) },
-                    )
+                pack?.let { seasonPack ->
+                    item { SectionHeading("Housemates", centered = true) }
+                    items(
+                        seasonPack.housemates.sortedBy { it.place ?: Int.MAX_VALUE }.take(6),
+                        key = { it.id },
+                    ) { housemate ->
+                        HousemateCard(
+                            housemate,
+                            effectiveSeason?.let {
+                                housematePhotoUrl(it, seasonPack.photos[housemate.id])
+                            },
+                        )
+                    }
                 }
             }
             PbbTab.HOUSEMATES -> {
@@ -870,56 +1024,81 @@ private fun PbbContent(
                 }
             }
             PbbTab.NOMINATIONS -> {
-                item { SectionHeading("Nomination Tallies", centered = true) }
-                if (pack?.nominationTallies.isNullOrEmpty()) {
+                if (sortedTallies.isEmpty() && sortedEvictions.isEmpty()) {
+                    item { PbbEmptyState("Coming Soon\nData for this season will be available upon official announcement.") }
+                } else {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Nomination Tallies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = {
+                            scope.launch { listState.animateScrollToItem(4 + sortedTallies.size) }
+                        }) {
+                            Text("Jump to Eviction Results", color = PhcaGold)
+                        }
+                    }
+                }
+                if (sortedTallies.isEmpty()) {
                     item { PbbEmptyState("Nomination results are not available yet.") }
                 }
-                items(pack?.nominationTallies.orEmpty(), key = { it.id ?: it.week ?: 0 }) { tally ->
+                items(sortedTallies, key = { "tally_${it.id ?: it.week}" }) { tally ->
                     PbbPanel(tally.title ?: "Week ${tally.week ?: "—"}", Color(0xFFE1F5FE)) {
                         tally.method?.let { Text("Method: $it") }
                         tally.entries.forEach { entry ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(pack?.housemates.findHousemateName(entry.id))
-                                Text(
-                                    listOfNotNull(entry.label, entry.state?.let(::statusLabel))
-                                        .joinToString(" • "),
-                                    color = nominationColor(entry.state),
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
+                            PbbPersonRow(
+                                name = pack?.housemates.findHousemateName(entry.id)
+                                    ?.takeUnless { it == "Housemate" } ?: entry.name ?: "Housemate",
+                                photoUrl = entry.id?.let { id ->
+                                    effectiveSeason?.let { season ->
+                                        housematePhotoUrl(season, pack?.photos?.get(id))
+                                    }
+                                },
+                                subtitle = entry.label,
+                                status = entry.state,
+                                statusColor = nominationColor(entry.state),
+                            )
                         }
                         tally.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
                     }
                 }
-                item { SectionHeading("Evictions", centered = true) }
-                if (pack?.evictions.isNullOrEmpty()) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Eviction Results", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { scope.launch { listState.animateScrollToItem(3) } }) {
+                            Text("Jump to Nomination Tallies", color = PhcaGold)
+                        }
+                    }
+                }
+                if (sortedEvictions.isEmpty()) {
                     item { PbbEmptyState("Eviction results are not available yet.") }
                 }
-                items(pack?.evictions.orEmpty(), key = { "${it.week}-${it.day}-${it.date}" }) { eviction ->
+                items(sortedEvictions, key = { "eviction_${it.week}_${it.day}" }) { eviction ->
                     PbbPanel("Week ${eviction.week ?: "—"}", Color(0xFFFFF3E0)) {
                         eviction.date?.let { Text(it) }
                         eviction.voteType?.let { Text(voteTypeLabel(it), fontWeight = FontWeight.SemiBold) }
                         eviction.deskState?.let { PbbStatusChip(it) }
                         eviction.resultsAsOf?.let { Text("Results as of $it") }
                         eviction.nominated.forEach { nominee ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(pack?.housemates.findHousemateName(nominee.id))
-                                Text(
-                                    listOfNotNull(
-                                        nominee.label,
-                                        nominee.percent?.let(::formatPercent),
-                                        nominee.result?.let(::statusLabel),
-                                    ).joinToString(" • ").ifBlank { "—" },
-                                    color = evictionColor(nominee.result),
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
+                            PbbPersonRow(
+                                name = pack?.housemates.findHousemateName(nominee.id)
+                                    ?.takeUnless { it == "Housemate" }
+                                    ?: nominee.label ?: "Housemate",
+                                photoUrl = nominee.id?.let { id ->
+                                    effectiveSeason?.let { season ->
+                                        housematePhotoUrl(season, pack?.photos?.get(id))
+                                    }
+                                },
+                                subtitle = nominee.percent?.let(::formatPercent),
+                                status = nominee.result,
+                                statusColor = evictionColor(nominee.result),
+                            )
                         }
                         if (eviction.evicted.isNotEmpty()) {
                             Text(
@@ -932,13 +1111,14 @@ private fun PbbContent(
                         eviction.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
                     }
                 }
+                }
             }
             PbbTab.WEEKLY_TASKS -> {
                 item { SectionHeading("Weekly Tasks", centered = true) }
-                if (pack?.weeklyTasks.isNullOrEmpty()) {
-                    item { PbbEmptyState("Weekly task details are coming soon.") }
+                if (sortedTasks.isEmpty()) {
+                    item { PbbEmptyState("Coming Soon\nData for this season will be available upon official announcement.") }
                 }
-                items(pack?.weeklyTasks.orEmpty(), key = { "${it.week}-${it.day}-${it.date}" }) { task ->
+                items(sortedTasks, key = { "task_${it.week}_${it.day}" }) { task ->
                     PbbPanel("Week ${task.week ?: "—"}", Color(0xFFF3E5F5)) {
                         Text(task.title ?: "Weekly Task", fontWeight = FontWeight.Bold)
                         task.date?.let { Text(it) }
@@ -959,7 +1139,14 @@ private fun PbbPanel(
     backgroundColor: Color,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    val panelColor = if (isSystemInDarkTheme()) darkPbbPanelColor(backgroundColor) else backgroundColor
+    val panelColor = if (isSystemInDarkTheme()) {
+        when (backgroundColor) {
+            Color(0xFFE8F5E9) -> Color(0xFF1E2D22)
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        }
+    } else {
+        backgroundColor
+    }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
         shape = RoundedCornerShape(12.dp),
@@ -985,25 +1172,84 @@ private fun PbbEmptyState(message: String) {
     )
 }
 
-private fun darkPbbPanelColor(lightColor: Color): Color = when (lightColor) {
-    Color(0xFFE8F5E9) -> Color(0xFF203728)
-    Color(0xFFFFF3E0) -> Color(0xFF3A2D1D)
-    Color(0xFFE1F5FE) -> Color(0xFF1D3440)
-    Color(0xFFF3E5F5) -> Color(0xFF34243A)
-    else -> Color(0xFF292929)
-}
-
 @Composable
 private fun PbbStatusChip(status: String) {
     val color = statusColor(status)
-    Surface(shape = RoundedCornerShape(8.dp), color = color.copy(alpha = 0.13f)) {
+    Surface(shape = RoundedCornerShape(8.dp), color = color) {
         Text(
             statusLabel(status),
             Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-            color = color,
+            color = Color.White,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.labelMedium,
         )
+    }
+}
+
+@Composable
+private fun PbbEvictionDeskCard(pack: SeasonPack, eviction: Eviction?, seasonId: String?) {
+    val darkMode = isSystemInDarkTheme()
+    val deskState = eviction?.deskState?.lowercase().orEmpty()
+    val hasNominees = eviction?.nominated?.isNotEmpty() == true
+    val votingOpen = pack.season?.votingOpen == true
+    val showsDesk = hasNominees && (votingOpen || deskState in setOf(
+        "started",
+        "partial",
+        "eviction_night",
+        "closed_tally",
+        "closed_revealed",
+    ))
+    PbbPanel("Eviction Desk", Color(0xFFFFF3E0)) {
+        if (showsDesk) {
+            val revealed = deskState == "closed_revealed"
+            Text(
+                when (deskState) {
+                    "closed_revealed" -> "Voting is CLOSED. Final votes tally:"
+                    else -> "Voting is OPEN! Current vote standings:"
+                },
+                color = if (darkMode) Color(0xFFFF8A80) else Color(0xFFC62828),
+                fontWeight = FontWeight.Bold,
+            )
+            if (deskState in setOf("partial", "eviction_night") &&
+                !eviction?.resultsAsOf.isNullOrBlank()
+            ) {
+                Text(
+                    "Voting results as of ${eviction?.resultsAsOf}:",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            eviction?.nominated.orEmpty().forEachIndexed { index, nominee ->
+                val housemate = pack.housemates.firstOrNull { it.id == nominee.id }
+                val name = when {
+                    deskState == "started" -> "Housemate ${('A'.code + index).toChar()}"
+                    revealed -> housemate?.name ?: nominee.id?.toDisplayName() ?: "Housemate"
+                    else -> nominee.label?.takeIf { it.isNotBlank() } ?: "Housemate"
+                }
+                val photo = if (revealed && seasonId != null) {
+                    housematePhotoUrl(seasonId, nominee.id?.let(pack.photos::get))
+                } else {
+                    "https://pbbupdates.drpsphca.com/assets/img/misc/misc_hm.png"
+                }
+                val percent = if (deskState == "started") "0.00%" else
+                    nominee.percent?.let(::formatPercent) ?: "0.00%"
+                PbbPersonRow(
+                    name = name,
+                    photoUrl = photo,
+                    subtitle = percent,
+                    status = nominee.result.takeIf { revealed },
+                    statusColor = nominee.result?.let(::evictionColor),
+                )
+            }
+        } else {
+            Text("No ongoing eviction voting")
+            pack.season?.winner?.let { winnerId ->
+                Text(
+                    "Winner: ${pack.housemates.findHousemateName(winnerId)}",
+                    color = if (darkMode) Color(0xFF81C784) else Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
     }
 }
 
@@ -1018,48 +1264,97 @@ private fun HousemateCard(housemate: Housemate, photoUrl: String?) {
             if (photoUrl != null) {
                 AsyncImage(
                     model = photoUrl,
-                    contentDescription = housemate.displayName ?: housemate.name,
+                    contentDescription = housemate.name ?: housemate.id.toDisplayName(),
                     imageLoader = LocalPhcaImageLoader.current,
-                    modifier = Modifier.size(112.dp),
+                    modifier = Modifier.size(64.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop,
                 )
+            } else {
+                Box(
+                    Modifier.size(64.dp).clip(CircleShape).background(Color.Gray),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White)
+                }
             }
-            Column(Modifier.padding(16.dp)) {
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    housemate.displayName ?: housemate.name ?: housemate.id.toDisplayName(),
+                    housemate.name ?: housemate.id.toDisplayName(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 housemate.moniker?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = MaterialTheme.colorScheme.primary)
+                    Text(it, color = PhcaGold, style = MaterialTheme.typography.bodySmall)
                 }
-                housemate.status?.let { PbbStatusChip(it) }
+                housemate.type?.let {
+                    Text("Type: $it", style = MaterialTheme.typography.bodySmall)
+                }
                 listOfNotNull(
-                    housemate.type,
-                    housemate.ageOnEntry?.let { "$it years old" },
-                    housemate.hometown,
+                    housemate.dayEntered?.let { "Entered: Day $it" },
+                    housemate.dayExited?.let { "Exited: Day $it" },
                 ).takeIf { it.isNotEmpty() }?.let {
                     Text(it.joinToString(" • "), style = MaterialTheme.typography.bodySmall)
                 }
-                listOfNotNull(
-                    housemate.dayEntered?.let { "Entered Day $it" },
-                    housemate.dayExited?.let { "Exited Day $it" },
-                    housemate.pairId?.let { "Pair: ${it.toDisplayName()}" },
-                ).takeIf { it.isNotEmpty() }?.let {
-                    Text(it.joinToString(" • "), style = MaterialTheme.typography.bodySmall)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                PbbStatusChip(housemate.status ?: "active")
+                housemate.place?.let {
+                    Text("Place #$it", color = PhcaGold, style = MaterialTheme.typography.bodySmall)
                 }
                 housemate.nominationPoints?.let {
-                    Text("Nomination points: $it", style = MaterialTheme.typography.bodySmall)
+                    Text("$it pts", style = MaterialTheme.typography.bodySmall)
                 }
-                housemate.votePercent?.let {
-                    Text("Vote share: ${formatPercent(it)}", style = MaterialTheme.typography.bodySmall)
-                }
-                housemate.votePercentFinale?.let {
-                    Text("Finale votes: ${formatPercent(it)}", style = MaterialTheme.typography.bodySmall)
-                }
-                housemate.place?.takeIf { it > 0 }?.let {
-                    Text("Place: $it", style = MaterialTheme.typography.bodySmall)
-                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PbbPersonRow(
+    name: String,
+    photoUrl: String?,
+    subtitle: String?,
+    status: String?,
+    statusColor: Color?,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (photoUrl != null) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = name,
+                imageLoader = LocalPhcaImageLoader.current,
+                modifier = Modifier.size(48.dp).clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).background(Color.Gray),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White)
+            }
+        }
+        Spacer(Modifier.size(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(name, fontWeight = FontWeight.SemiBold)
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
+        if (status != null) {
+            Surface(
+                color = statusColor ?: Color(0xFF0277BD),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    statusLabel(status),
+                    Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }
@@ -1317,11 +1612,16 @@ private fun ErrorContent(message: String, onRetry: () -> Unit) {
     }
 }
 
-private fun seasonLabel(key: String, season: SeasonInfo?): String = when (key) {
-    "gen11" -> "Gen 11"
-    "collab3" -> "Collab 3.0"
-    else -> season?.shortTitle ?: season?.title ?: key
-}
+private fun seasonLabel(
+    key: String,
+    season: SeasonInfo?,
+    seasonList: List<SeasonListItem>?,
+): String = seasonList?.firstOrNull { it.id == key }?.label
+    ?: when (key) {
+        "gen11" -> "Gen 11"
+        "collab3" -> "Collab 3.0"
+        else -> season?.shortTitle ?: season?.title ?: key
+    }
 
 private fun housematePhotoUrl(seasonId: String, photo: String?): String? {
     if (photo.isNullOrBlank()) return null

@@ -9,6 +9,13 @@ expect fun platform(): String
 expect fun createPlatformHttpClientEngine(): HttpClientEngine
 
 @Composable
+expect fun loadPersistedPbbSeason(): String?
+
+expect fun persistPbbSeason(seasonId: String)
+
+expect fun consumePendingNotificationRoute(): String?
+
+@Composable
 expect fun PlatformArticleImage(
     article: Article,
     modifier: Modifier,

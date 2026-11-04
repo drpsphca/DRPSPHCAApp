@@ -69,7 +69,26 @@ internal object WordPressEndpoints {
 @Serializable
 data class BoardIndex(
     @SerialName("posts_url") val postsUrl: String? = null,
+    @SerialName("season_list") val seasonList: List<SeasonListItem> = emptyList(),
     val seasons: Map<String, SeasonPack> = emptyMap(),
+)
+
+@Serializable
+data class SeasonListItem(
+    val id: String,
+    val label: String,
+    val href: String? = null,
+    val available: Boolean = false,
+    val summary: String? = null,
+)
+
+@Serializable
+data class PendingNotificationRoute(
+    val channel: String? = null,
+    val type: String? = null,
+    val topic: String? = null,
+    val url: String? = null,
+    val season: String? = null,
 )
 
 @Serializable
@@ -271,6 +290,23 @@ internal class ContentRepository(engine: HttpClientEngine) {
         json.decodeFromString<List<Article>>(
             client.get("https://pbbupdates.drpsphca.com/api/posts.json").bodyAsText(),
         )
+
+    suspend fun wordpressArticleByUrl(endpoint: WordPressEndpoint, url: String): Article? {
+        endpoint.requireAuthorization()
+        val slug = url.substringBefore('?').trimEnd('/').substringAfterLast('/')
+        if (slug.isBlank()) return null
+        val posts = client.get("${endpoint.apiUrl.trimEnd('/')}/wp/v2/posts") {
+            header(HttpHeaders.Authorization, endpoint.authorization)
+            header(HttpHeaders.UserAgent, "com.drpsphca.app")
+            parameter("_embed", "1")
+            parameter("slug", slug)
+            parameter("per_page", 1)
+        }.let { parseJsonArray(it.bodyAsText(), "post '$slug' from ${endpoint.apiUrl}") }
+        val origin = Regex("""^https?://[^/]+""")
+            .find(endpoint.apiUrl)?.value
+            ?: error("Invalid WordPress API URL: ${endpoint.apiUrl}")
+        return parseWordPressPosts(JsonArray(posts), endpoint.authorization, origin).firstOrNull()
+    }
 
     suspend fun pbbBoard(): BoardIndex =
         json.decodeFromString(client.get("https://pbbupdates.drpsphca.com/api/index.json").bodyAsText())

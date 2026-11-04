@@ -17,6 +17,13 @@ actual fun platform() = "Android"
 actual fun createPlatformHttpClientEngine(): HttpClientEngine = OkHttp.create()
 
 @Composable
+actual fun loadPersistedPbbSeason(): String? = null
+
+actual fun persistPbbSeason(seasonId: String) = Unit
+
+actual fun consumePendingNotificationRoute(): String? = null
+
+@Composable
 actual fun PlatformArticleImage(
     article: Article,
     modifier: Modifier,

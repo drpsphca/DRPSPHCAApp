@@ -27,6 +27,7 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.darwin.Darwin
 import kotlinx.coroutines.CancellationException
 import platform.Foundation.NSData
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.dataWithBytes
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageView
@@ -37,6 +38,21 @@ import kotlinx.cinterop.usePinned
 actual fun platform() = "iOS"
 
 actual fun createPlatformHttpClientEngine(): HttpClientEngine = Darwin.create()
+
+@Composable
+actual fun loadPersistedPbbSeason(): String? =
+    NSUserDefaults.standardUserDefaults.stringForKey("pbb_updates.selected_season_id")
+
+actual fun persistPbbSeason(seasonId: String) {
+    NSUserDefaults.standardUserDefaults.setObject(seasonId, forKey = "pbb_updates.selected_season_id")
+}
+
+actual fun consumePendingNotificationRoute(): String? {
+    val defaults = NSUserDefaults.standardUserDefaults
+    val route = defaults.stringForKey("pbb_updates.pending_notification_route")
+    defaults.removeObjectForKey("pbb_updates.pending_notification_route")
+    return route
+}
 
 private val articleImageClient = HttpClient(Darwin.create())
 

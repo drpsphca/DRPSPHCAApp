@@ -118,6 +118,11 @@ class ContentRepositoryTest {
             """
                 {
                   "posts_url": "https://pbbupdates.drpsphca.com/api/posts.json",
+                  "season_list": [{
+                    "id": "collab3",
+                    "label": "Collab 3.0",
+                    "available": true
+                  }],
                   "seasons": {
                     "collab3": {
                       "season": {
@@ -188,6 +193,7 @@ class ContentRepositoryTest {
         assertTrue(info.votingOpen)
         assertEquals("Host One", info.hosts.single())
         assertTrue(index.postsUrl?.endsWith("posts.json") == true)
+        assertEquals("Collab 3.0", index.seasonList.single().label)
         assertEquals(29, season.housemates.single().ageOnEntry)
         assertEquals("Kapuso", season.housemates.single().type)
         assertEquals(20.5, season.housemates.single().votePercent)
