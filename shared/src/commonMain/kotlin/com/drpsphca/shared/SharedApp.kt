@@ -220,6 +220,8 @@ fun SharedApp() {
     val keyboardController = LocalSoftwareKeyboardController.current
     val repository = remember { ContentRepository(createPlatformHttpClientEngine()) }
     val section = sections[selectedSection]
+    val isIosSearchMode =
+        platform() == "iOS" && searchVisible && selectedSection in setOf(0, 1, 3)
 
     fun submitSearch() {
         val query = searchQuery.trim()
@@ -237,7 +239,11 @@ fun SharedApp() {
         keyboardController?.hide()
         scope.launch {
             try {
-                val results = repository.searchAllWordPress(query)
+                val results = if (platform() == "iOS") {
+                    repository.searchIosPosts(selectedSection, query)
+                } else {
+                    repository.searchAllWordPress(query)
+                }
                 if (requestId == searchRequestId) searchResults = results
             } catch (exception: Exception) {
                 if (requestId == searchRequestId) {
@@ -448,7 +454,10 @@ fun SharedApp() {
         CompositionLocalProvider(LocalPhcaImageLoader provides imageLoader) {
         Scaffold(
             topBar = {
-                if (selectedArticle != null && platform() == "iOS") {
+                if (
+                    platform() == "iOS" &&
+                    (selectedArticle != null || selectedTag != null || isIosSearchMode)
+                ) {
                     Surface(
                         modifier = Modifier.statusBarsPadding(),
                         color = MaterialTheme.colorScheme.surface,
@@ -457,29 +466,82 @@ fun SharedApp() {
                             Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 0.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            TextButton(
-                                onClick = { selectedArticle = null },
-                                contentPadding = PaddingValues(horizontal = 0.dp),
+                            IconButton(
+                                onClick = {
+                                    when {
+                                        selectedArticle != null -> selectedArticle = null
+                                        selectedTag != null -> {
+                                            selectedTag = null
+                                            tagRequestId++
+                                        }
+                                        else -> {
+                                            searchVisible = false
+                                            searchQuery = ""
+                                            searchSubmitted = false
+                                            searchRequestId++
+                                            searchLoading = false
+                                            searchError = null
+                                            searchResults = emptyList()
+                                            keyboardController?.hide()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp),
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.Black,
+                                )
+                            }
+                            if (isIosSearchMode) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = {
+                                        searchQuery = it
+                                        searchRequestId++
+                                        searchLoading = false
+                                        searchSubmitted = false
+                                        searchError = null
+                                        searchResults = emptyList()
+                                    },
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                    singleLine = true,
+                                    placeholder = {
+                                        Text(
+                                            if (selectedSection == 0 || selectedSection == 1) {
+                                                "Search Blog and Bite-sized"
+                                            } else {
+                                                "Search ${section.title}"
+                                            },
+                                        )
+                                    },
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
+                                )
+                            } else {
                                 Text(
                                     when {
+                                        selectedTag != null -> "Posts tagged \"$selectedTag\""
                                         selectedSection == 1 && biteSized -> "Bite-sized"
                                         selectedSection == 3 -> "TV Ad Listing"
                                         selectedSection == 4 -> "PBB Announcement"
                                         else -> "Post"
                                     },
+                                    color = Color.Black,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                Spacer(Modifier.weight(1f))
                             }
-                            Spacer(Modifier.weight(1f))
-                            IconButton(
-                                onClick = {
-                                    selectedArticle?.let { shareArticle(it.title, it.url) }
-                                },
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = "Share post")
+                            if (selectedArticle != null) {
+                                IconButton(
+                                    onClick = {
+                                        selectedArticle?.let { shareArticle(it.title, it.url) }
+                                    },
+                                ) {
+                                    Icon(Icons.Filled.Share, contentDescription = "Share post")
+                                }
                             }
                         }
                     }
@@ -598,7 +660,11 @@ fun SharedApp() {
             },
             bottomBar = {
                 AnimatedVisibility(
-                    visible = selectedArticle == null || platform() != "iOS",
+                    visible = (
+                        selectedArticle == null &&
+                            selectedTag == null &&
+                            !isIosSearchMode
+                        ) || platform() != "iOS",
                     enter = slideInVertically(
                         animationSpec = tween(250),
                         initialOffsetY = { it },
@@ -681,27 +747,6 @@ fun SharedApp() {
                         )
                     } else if (selectedTag != null) {
                         Column(Modifier.fillMaxSize()) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        selectedTag = null
-                                        refreshCount++
-                                    },
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Blog")
-                                    Text("Blog")
-                                }
-                                Text(
-                                    "Posts tagged \"${selectedTag!!}\"",
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
                             ContentBody(
                                 isLoading = isTagLoading,
                                 error = tagError,
@@ -1662,7 +1707,11 @@ private fun ArticleDetail(
                 if (article.image != null) {
                     PlatformArticleImage(
                         article = article,
-                        modifier = Modifier.fillMaxWidth().height(260.dp),
+                        modifier = if (platform() == "iOS") {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier.fillMaxWidth().height(260.dp)
+                        },
                         contentDescription = article.title,
                         onClick = null,
                     )
@@ -1676,7 +1725,7 @@ private fun ArticleDetail(
                 Spacer(Modifier.height(16.dp))
                 val html = article.contentHtml?.takeIf { it.isNotBlank() } ?: article.content
                 if (html.isNotBlank()) {
-                    HtmlArticleBody(html, notoSerifFont)
+                    HtmlArticleBody(article, html, notoSerifFont)
                 } else {
                     Text(
                         article.contentText?.takeIf { it.isNotBlank() } ?: article.excerpt,
@@ -1690,10 +1739,27 @@ private fun ArticleDetail(
 }
 
 @Composable
-private fun HtmlArticleBody(html: String, bodyFont: androidx.compose.ui.text.font.FontFamily) {
+private fun HtmlArticleBody(
+    article: Article,
+    html: String,
+    bodyFont: androidx.compose.ui.text.font.FontFamily,
+) {
     val blocks = remember(html) { htmlArticleBlocks(html) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         blocks.forEach { block ->
+            if (block.type == HtmlBlockType.IMAGE) {
+                if (platform() == "iOS") {
+                    block.imageUrl?.let { imageUrl ->
+                        PlatformArticleImage(
+                            article = article.copy(image = imageUrl),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentDescription = article.title,
+                            onClick = null,
+                        )
+                    }
+                }
+                return@forEach
+            }
             val style = when (block.type) {
                 HtmlBlockType.HEADING -> when (block.headingLevel) {
                     1 -> MaterialTheme.typography.headlineMedium
@@ -1716,6 +1782,7 @@ private fun HtmlArticleBody(html: String, bodyFont: androidx.compose.ui.text.fon
                         fontFamily = bodyFont,
                         lineHeight = 26.sp,
                     )
+                HtmlBlockType.IMAGE -> return@forEach
             }
             Text(block.text, style = style)
         }
@@ -1740,7 +1807,11 @@ private fun ArticleCard(
             if (article.image != null) {
                 PlatformArticleImage(
                     article = article,
-                    modifier = Modifier.fillMaxWidth().height(190.dp),
+                    modifier = if (platform() == "iOS") {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier.fillMaxWidth().height(190.dp)
+                    },
                     contentDescription = article.title,
                     onClick = { onClick(article) },
                 )

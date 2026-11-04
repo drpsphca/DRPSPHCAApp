@@ -3,8 +3,10 @@
 package com.drpsphca.shared
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,8 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.UIKitView
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -36,8 +41,9 @@ import platform.UIKit.UIModalPresentationPageSheet
 import platform.Foundation.dataWithBytes
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageView
-import platform.UIKit.UIViewContentMode.UIViewContentModeScaleAspectFill
+import platform.UIKit.UIViewContentMode.UIViewContentModeScaleAspectFit
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 
 actual fun platform() = "iOS"
@@ -116,21 +122,31 @@ actual fun PlatformArticleImage(
         }
     }
 
-    Box(
-        modifier
+    BoxWithConstraints(
+        modifier.clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
+        propagateMinConstraints = false,
     ) {
+        val imageSize = image?.size?.useContents { width to height }
+        val imageWidth = imageSize?.first?.takeIf { it > 0.0 }
+        val imageHeight = imageSize?.second?.takeIf { it > 0.0 }
+        val renderedWidth = imageWidth?.dp?.coerceAtMost(maxWidth) ?: maxWidth
+        val renderedHeight = if (imageWidth != null && imageHeight != null) {
+            renderedWidth * (imageHeight / imageWidth).toFloat()
+        } else {
+            160.dp
+        }
         UIKitView(
             factory = {
                 UIImageView().apply {
-                    contentMode = UIViewContentModeScaleAspectFill
+                    contentMode = UIViewContentModeScaleAspectFit
                     clipsToBounds = true
                     userInteractionEnabled = false
                 }
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.width(renderedWidth).height(renderedHeight),
             update = { it.image = image },
         )
         when {

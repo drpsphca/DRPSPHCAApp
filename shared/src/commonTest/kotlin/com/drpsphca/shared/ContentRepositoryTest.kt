@@ -277,4 +277,17 @@ class ContentRepositoryTest {
         assertEquals("• First item", blocks[2].text.text)
         assertEquals("• Second item", blocks[3].text.text)
     }
+
+    @Test
+    fun preservesEmbeddedImagesAsHtmlBlocks() {
+        val blocks = htmlArticleBlocks(
+            """<p>Before</p><img src="https://example.com/photo.jpg" alt="Photo"><p>After</p>""",
+        )
+
+        assertEquals(
+            listOf(HtmlBlockType.BODY, HtmlBlockType.IMAGE, HtmlBlockType.BODY),
+            blocks.map { it.type },
+        )
+        assertEquals("https://example.com/photo.jpg", blocks[1].imageUrl)
+    }
 }
