@@ -67,7 +67,10 @@ internal object WordPressEndpoints {
 }
 
 @Serializable
-data class BoardIndex(val seasons: Map<String, SeasonPack> = emptyMap())
+data class BoardIndex(
+    @SerialName("posts_url") val postsUrl: String? = null,
+    val seasons: Map<String, SeasonPack> = emptyMap(),
+)
 
 @Serializable
 data class SeasonPack(
@@ -81,12 +84,22 @@ data class SeasonPack(
 
 @Serializable
 data class SeasonInfo(
+    val id: String? = null,
     val title: String? = null,
     @SerialName("short_title") val shortTitle: String? = null,
+    val premiere: String? = null,
+    val finale: String? = null,
+    val days: Int? = null,
     val status: String? = null,
+    @SerialName("voting_open") val votingOpen: Boolean = false,
     val winner: String? = null,
     @SerialName("current_week") val currentWeek: Int? = null,
     @SerialName("current_day") val currentDay: Int? = null,
+    val available: Boolean = true,
+    val hosts: List<String> = emptyList(),
+    val notes: String? = null,
+    val sources: List<String> = emptyList(),
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable
@@ -95,28 +108,53 @@ data class Housemate(
     val name: String? = null,
     @SerialName("display_name") val displayName: String? = null,
     val moniker: String? = null,
+    @SerialName("age_on_entry") val ageOnEntry: Int? = null,
     val status: String? = null,
     val hometown: String? = null,
+    val type: String? = null,
+    @SerialName("pair_id") val pairId: String? = null,
+    @SerialName("day_entered") val dayEntered: Int? = null,
+    @SerialName("day_exited") val dayExited: Int? = null,
     val place: Int? = null,
+    @SerialName("nomination_points") val nominationPoints: Int? = null,
+    @SerialName("vote_percent") val votePercent: Double? = null,
+    @SerialName("vote_percent_finale") val votePercentFinale: Double? = null,
 )
 
 @Serializable
 data class Eviction(
     val week: Int? = null,
+    val day: Int? = null,
     val date: String? = null,
+    @SerialName("vote_type") val voteType: String? = null,
+    @SerialName("desk_state") val deskState: String? = null,
+    @SerialName("results_as_of") val resultsAsOf: String? = null,
     val note: String? = null,
     val evicted: List<String> = emptyList(),
+    val nominated: List<EvictionNominee> = emptyList(),
+)
+
+@Serializable
+data class EvictionNominee(
+    val id: String? = null,
+    val label: String? = null,
+    val percent: Double? = null,
+    val result: String? = null,
 )
 
 @Serializable
 data class NominationTally(
+    val id: Int? = null,
     val week: Int? = null,
     val title: String? = null,
+    val method: String? = null,
+    val note: String? = null,
     val entries: List<TallyEntry> = emptyList(),
 )
 
 @Serializable
 data class TallyEntry(
+    val id: String? = null,
     val name: String? = null,
     val label: String? = null,
     val state: String? = null,
@@ -125,10 +163,12 @@ data class TallyEntry(
 @Serializable
 data class WeeklyTask(
     val week: Int? = null,
+    val day: Int? = null,
     val date: String? = null,
     val title: String? = null,
     val summary: String? = null,
     val status: String? = null,
+    val note: String? = null,
 )
 
 private val json = Json { ignoreUnknownKeys = true }

@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -109,6 +110,92 @@ class ContentRepositoryTest {
         val merged = mergePbbAnnouncements(listOf(apiPost), listOf(duplicate, newerPost))
 
         assertEquals(listOf(newerPost, apiPost), merged)
+    }
+
+    @Test
+    fun parsesPbbSeasonDetailsForIosBoard() {
+        val index = Json.decodeFromString<BoardIndex>(
+            """
+                {
+                  "posts_url": "https://pbbupdates.drpsphca.com/api/posts.json",
+                  "seasons": {
+                    "collab3": {
+                      "season": {
+                        "id": "collab3",
+                        "title": "Pinoy Big Brother: Collab 3.0",
+                        "short_title": "PBB Collab 3.0",
+                        "premiere": "2026-10-24",
+                        "days": 99,
+                        "status": "live",
+                        "voting_open": true,
+                        "current_week": 2,
+                        "current_day": 12,
+                        "hosts": ["Host One"],
+                        "winner": "bela-arcal"
+                      },
+                      "housemates": [{
+                        "id": "bela-arcal",
+                        "name": "Bela Arcal",
+                        "display_name": "Bela",
+                        "age_on_entry": 29,
+                        "type": "Kapuso",
+                        "day_entered": 1,
+                        "status": "safe",
+                        "nomination_points": 3,
+                        "vote_percent": 20.5
+                      }],
+                      "evictions": [{
+                        "week": 2,
+                        "day": 12,
+                        "vote_type": "save_evict",
+                        "desk_state": "closed",
+                        "results_as_of": "2026-10-30",
+                        "nominated": [{
+                          "id": "bela-arcal",
+                          "label": "Bela",
+                          "percent": 42.5,
+                          "result": "saved"
+                        }],
+                        "evicted": []
+                      }],
+                      "nomination_tallies": [{
+                        "id": 1,
+                        "week": 2,
+                        "title": "Nominations",
+                        "method": "House vote",
+                        "entries": [{
+                          "id": "bela-arcal",
+                          "label": "3 pts",
+                          "state": "not_nominated"
+                        }]
+                      }],
+                      "weekly_tasks": [{
+                        "week": 2,
+                        "day": 12,
+                        "title": "Task",
+                        "status": "passed",
+                        "note": "Task note"
+                      }]
+                    }
+                  }
+                }
+            """.trimIndent(),
+        )
+        val season = index.seasons.getValue("collab3")
+        val info = requireNotNull(season.season)
+
+        assertTrue(info.available)
+        assertTrue(info.votingOpen)
+        assertEquals("Host One", info.hosts.single())
+        assertTrue(index.postsUrl?.endsWith("posts.json") == true)
+        assertEquals(29, season.housemates.single().ageOnEntry)
+        assertEquals("Kapuso", season.housemates.single().type)
+        assertEquals(20.5, season.housemates.single().votePercent)
+        assertEquals(42.5, season.evictions.single().nominated.single().percent)
+        assertEquals("closed", season.evictions.single().deskState)
+        assertEquals("Bela", season.evictions.single().nominated.single().label)
+        assertEquals("House vote", season.nominationTallies.single().method)
+        assertEquals("Task note", season.weeklyTasks.single().note)
     }
 
     @Test

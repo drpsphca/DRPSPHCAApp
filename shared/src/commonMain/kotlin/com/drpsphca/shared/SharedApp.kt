@@ -2,6 +2,8 @@ package com.drpsphca.shared
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,8 +33,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,6 +43,10 @@ import androidx.compose.material3.Typography
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.automirrored.filled.ContactSupport
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -64,6 +70,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.foundation.text.KeyboardActions
@@ -103,6 +110,7 @@ import com.drpsphca.shared.resources.phca_gilroy_regular
 import com.drpsphca.shared.resources.tag_background
 import com.drpsphca.shared.resources.tvallogo
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private val PhcaNavy = Color(0xFF17345C)
 private val PhcaGreen = Color(0xFF3C8E3E)
@@ -324,6 +332,9 @@ fun SharedApp() {
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text("Refresh") },
+                                        trailingIcon = {
+                                            Icon(Icons.Filled.Refresh, contentDescription = null)
+                                        },
                                         onClick = {
                                             refreshCount++
                                             moreMenuExpanded = false
@@ -331,6 +342,9 @@ fun SharedApp() {
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Contact Us") },
+                                        trailingIcon = {
+                                            Icon(Icons.AutoMirrored.Filled.ContactSupport, contentDescription = null)
+                                        },
                                         onClick = {
                                             selectedArticle = Article(
                                                 title = "Contact Us",
@@ -340,12 +354,21 @@ fun SharedApp() {
                                                     "DRPS PHCA TVAL: telltotval@drpsphca.com\n\n" +
                                                     "Phone (SMS/Viber): +63 993 733 7082\n\n" +
                                                     "App content is powered by DRPSPHCA.com.",
+                                                contentHtml = "<p><strong>Main Email Address</strong><br>hello@drpsphca.com</p>" +
+                                                    "<p><strong>Press Contact</strong><br>telltofree@drpsphca.com</p>" +
+                                                    "<p><strong>App Feedback</strong><br>telltophcaapp@drpsphca.com</p>" +
+                                                    "<p><strong>DRPS PHCA TVAL</strong><br>telltotval@drpsphca.com</p>" +
+                                                    "<p><strong>Phone (SMS/Viber)</strong><br>+63 993 733 7082</p>" +
+                                                    "<p>App content is powered by DRPSPHCA.com.</p>",
                                             )
                                             moreMenuExpanded = false
                                         },
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Rate This App") },
+                                        trailingIcon = {
+                                            Icon(Icons.Filled.Star, contentDescription = null)
+                                        },
                                         onClick = { moreMenuExpanded = false },
                                     )
                                 }
@@ -393,11 +416,28 @@ fun SharedApp() {
                 }
             },
             bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                Row(
+                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                        .navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
                     sections.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selectedSection == index,
-                            onClick = {
+                        val selected = selectedSection == index
+                        Column(
+                            modifier = Modifier.weight(1f).height(64.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    if (selected) {
+                                        Brush.verticalGradient(
+                                            listOf(Color(0xFFE7D9FD), Color(0xFFC1C1C1)),
+                                        )
+                                    } else {
+                                        Brush.verticalGradient(
+                                            listOf(Color.Transparent, Color.Transparent),
+                                        )
+                                    },
+                                )
+                                .clickable {
                                 selectedArticle = null
                                 selectedSection = index
                                 searchQuery = ""
@@ -407,20 +447,20 @@ fun SharedApp() {
                                 searchLoading = false
                                 searchError = null
                                 searchResults = emptyList()
-                            },
-                            icon = { SectionIcon(index, selectedSection == index, darkMode) },
-                            label = {
-                                Text(
-                                    item.label,
-                                    maxLines = 1,
-                                    color = if (selectedSection == index) {
-                                        sectionSelectedColor(index)
-                                    } else {
-                                        if (darkMode) Color.LightGray else Color(0xFF888888)
-                                    },
-                                )
-                            },
-                        )
+                            }.padding(vertical = 5.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            SectionIcon(index, selected, darkMode)
+                            Text(
+                                item.label,
+                                maxLines = 1,
+                                color = if (selected) sectionSelectedColor(index) else {
+                                    if (darkMode) Color.LightGray else Color(0xFF888888)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
                     }
                 }
             },
@@ -477,28 +517,18 @@ fun SharedApp() {
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 PbbSection.values().forEach { tab ->
-                                    FilterButton(tab.label, pbbSection == tab) {
+                                    PbbFilterButton(tab.label, pbbSection == tab) {
                                         pbbSection = tab
                                     }
                                     }
                             }
-                            if (pbbSection == PbbSection.LIVE) {
-                                Row(
-                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    PbbTab.values().forEach { tab ->
-                                        FilterButton(tab.label, pbbTab == tab) { pbbTab = tab }
-                                    }
-                                }
-                            }
-                                            PbbContent(
+                            PbbContent(
                                 tab = pbbTab,
                                 section = pbbSection,
                                 board = board,
                                 selectedSeason = selectedSeason,
                                 onSeasonSelected = { selectedSeason = it },
+                                onTabSelected = { pbbTab = it },
                                 announcements = currentArticles,
                                 isLoading = isLoading,
                                 error = error,
@@ -537,6 +567,29 @@ private fun FilterButton(label: String, selected: Boolean, onClick: () -> Unit) 
         }
     } else {
         OutlinedButton(onClick = onClick, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+            Text(label, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun PbbFilterButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = PhcaGold,
+                contentColor = Color.White,
+            ),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        ) {
+            Text(label, maxLines = 1)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        ) {
             Text(label, maxLines = 1)
         }
     }
@@ -645,6 +698,7 @@ private fun PbbContent(
     board: BoardIndex?,
     selectedSeason: String,
     onSeasonSelected: (String) -> Unit,
+    onTabSelected: (PbbTab) -> Unit,
     announcements: List<Article>,
     isLoading: Boolean,
     error: String?,
@@ -658,7 +712,6 @@ private fun PbbContent(
         )
         return
     }
-    val pack = board?.seasons?.get(selectedSeason)
     if (isLoading && board == null) {
         LoadingIndicator()
         return
@@ -667,88 +720,290 @@ private fun PbbContent(
         ErrorContent(error, onRetry)
         return
     }
+    val seasonKeys = board?.seasons.orEmpty()
+        .filterValues { it.season?.available == true }
+        .keys
+        .sortedWith(compareBy<String> {
+            when (it.lowercase()) {
+                "collab3" -> 0
+                "gen11" -> 1
+                else -> 2
+            }
+        }.thenBy { it })
+    val effectiveSeason = selectedSeason.takeIf { it in seasonKeys } ?: seasonKeys.firstOrNull()
+    val pack = effectiveSeason?.let { board?.seasons?.get(it) }
+    var seasonMenuExpanded by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                board?.seasons?.keys?.sorted()?.forEach { season ->
-                    FilterButton(seasonLabel(season, board.seasons[season]?.season), season == selectedSeason) {
-                        onSeasonSelected(season)
+            if (effectiveSeason != null) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    OutlinedButton(
+                        onClick = { seasonMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
+                        Text(
+                            seasonLabel(effectiveSeason, pack?.season),
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Start,
+                            color = PhcaGold,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = "Select season")
+                    }
+                    DropdownMenu(
+                        expanded = seasonMenuExpanded,
+                        onDismissRequest = { seasonMenuExpanded = false },
+                    ) {
+                        seasonKeys.forEach { season ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        seasonLabel(season, board?.seasons?.get(season)?.season),
+                                        fontWeight = if (season == effectiveSeason) FontWeight.Bold
+                                        else FontWeight.Normal,
+                                    )
+                                },
+                                onClick = {
+                                    onSeasonSelected(season)
+                                    seasonMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text("No PBB seasons are currently available.", Modifier.padding(20.dp))
+            }
+        }
+        if (section == PbbSection.LIVE && effectiveSeason != null) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    PbbTab.values().forEach { pbbTab ->
+                        PbbFilterButton(pbbTab.label, tab == pbbTab) { onTabSelected(pbbTab) }
+                    }
+                }
+            }
+            item {
+                pack?.season?.let { info ->
+                    PbbPanel("Season Overview", Color(0xFFE8F5E9)) {
+                        Text(info.title ?: seasonLabel(effectiveSeason, info), fontWeight = FontWeight.Bold)
+                        Text(
+                            listOfNotNull(
+                                info.status?.let(::statusLabel),
+                                info.currentWeek?.let { "Week $it" },
+                                info.currentDay?.let { "Day $it" },
+                                info.days?.let { "$it days" },
+                            ).joinToString(" • ").ifBlank { "Season details" },
+                        )
+                        listOfNotNull(
+                            info.premiere?.let { "Premiere: $it" },
+                            info.finale?.let { "Finale: $it" },
+                            info.updatedAt?.let { "Updated: $it" },
+                        ).takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" • ")) }
+                        info.winner?.let { Text("Winner: ${pack.housemates.findHousemateName(it)}") }
+                        if (info.hosts.isNotEmpty()) Text("Hosts: ${info.hosts.joinToString()}")
+                        info.notes?.takeIf { it.isNotBlank() }?.let { Text(it.trim()) }
                     }
                 }
             }
         }
         when (tab) {
             PbbTab.OVERVIEW -> {
-                item {
-                    SectionHeading(seasonLabel(selectedSeason, pack?.season))
-                    pack?.season?.let { info ->
-                        InfoCard(
-                            listOfNotNull(
-                                info.status?.let { "Status: $it" },
-                                info.currentWeek?.let { "Week $it" },
-                                info.currentDay?.let { "Day $it" },
-                                info.winner?.let { "Winner: $it" },
-                            ).joinToString("  •  ").ifBlank { "Season overview" },
-                        )
+                pack?.evictions?.lastOrNull()?.let { eviction ->
+                    item {
+                        PbbPanel("Latest Eviction", Color(0xFFFFF3E0)) {
+                            Text("Week ${eviction.week ?: "—"}${eviction.date?.let { " • $it" } ?: ""}")
+                            eviction.evicted.forEach {
+                                Text("Evicted: ${pack.housemates.findHousemateName(it)}")
+                            }
+                            eviction.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        }
                     }
                 }
-                item { SectionHeading("Housemates") }
-                items(pack?.housemates.orEmpty().take(6), key = { it.id }) {
-                    HousemateCard(it, housematePhotoUrl(selectedSeason, pack?.photos?.get(it.id)))
+                pack?.nominationTallies?.lastOrNull()?.let { tally ->
+                    item {
+                        PbbPanel("Latest Nominations", Color(0xFFE1F5FE)) {
+                            Text(tally.title ?: "Week ${tally.week ?: "—"}")
+                            tally.entries.filter { it.state == "nominated" }.forEach { entry ->
+                                Text(
+                                    "${pack.housemates.findHousemateName(entry.id)}" +
+                                        (entry.label?.let { " • $it" } ?: ""),
+                                )
+                            }
+                            tally.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        }
+                    }
                 }
-                item { SectionHeading("Recent Announcements") }
-                items(announcements.take(5), key = { it.url }) { ArticleCard(it, onArticleClick) }
+                pack?.weeklyTasks?.lastOrNull()?.let { task ->
+                    item {
+                        PbbPanel("Latest Weekly Task", Color(0xFFF3E5F5)) {
+                            Text(task.title ?: "Week ${task.week ?: "—"}", fontWeight = FontWeight.SemiBold)
+                            task.summary?.let { Text(it) }
+                            task.status?.let { PbbStatusChip(it) }
+                        }
+                    }
+                }
+                item { SectionHeading("Housemates", centered = true) }
+                items(pack?.housemates.orEmpty().take(6), key = { it.id }) { housemate ->
+                    HousemateCard(
+                        housemate,
+                        effectiveSeason?.let { housematePhotoUrl(it, pack?.photos?.get(housemate.id)) },
+                    )
+                }
             }
             PbbTab.HOUSEMATES -> {
-                item { SectionHeading("Housemates") }
-                items(pack?.housemates.orEmpty(), key = { it.id }) {
-                    HousemateCard(it, housematePhotoUrl(selectedSeason, pack?.photos?.get(it.id)))
+                item { SectionHeading("Housemates", centered = true) }
+                if (pack?.housemates.isNullOrEmpty()) {
+                    item { PbbEmptyState("Housemate details are coming soon.") }
+                }
+                items(pack?.housemates.orEmpty(), key = { it.id }) { housemate ->
+                    HousemateCard(
+                        housemate,
+                        effectiveSeason?.let { housematePhotoUrl(it, pack?.photos?.get(housemate.id)) },
+                    )
                 }
             }
             PbbTab.NOMINATIONS -> {
-                item { SectionHeading("Nomination Tallies") }
-                items(pack?.nominationTallies.orEmpty()) { tally ->
-                    InfoCard(
-                        buildString {
-                            append(tally.title ?: "Week ${tally.week ?: ""}")
-                            tally.entries.forEach { entry ->
-                                append("\n")
-                                append(entry.name ?: entry.label ?: "Housemate")
-                                entry.state?.let { append(": $it") }
-                            }
-                        },
-                    )
+                item { SectionHeading("Nomination Tallies", centered = true) }
+                if (pack?.nominationTallies.isNullOrEmpty()) {
+                    item { PbbEmptyState("Nomination results are not available yet.") }
                 }
-                item { SectionHeading("Evictions") }
-                items(pack?.evictions.orEmpty()) { eviction ->
-                    InfoCard(
-                        buildString {
-                            append("Week ${eviction.week ?: "—"}")
-                            eviction.date?.let { append(" • $it") }
-                            if (eviction.evicted.isNotEmpty()) append("\nEvicted: ${eviction.evicted.joinToString()}")
-                            eviction.note?.let { append("\n$it") }
-                        },
-                    )
+                items(pack?.nominationTallies.orEmpty(), key = { it.id ?: it.week ?: 0 }) { tally ->
+                    PbbPanel(tally.title ?: "Week ${tally.week ?: "—"}", Color(0xFFE1F5FE)) {
+                        tally.method?.let { Text("Method: $it") }
+                        tally.entries.forEach { entry ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(pack?.housemates.findHousemateName(entry.id))
+                                Text(
+                                    listOfNotNull(entry.label, entry.state?.let(::statusLabel))
+                                        .joinToString(" • "),
+                                    color = nominationColor(entry.state),
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                        tally.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                    }
+                }
+                item { SectionHeading("Evictions", centered = true) }
+                if (pack?.evictions.isNullOrEmpty()) {
+                    item { PbbEmptyState("Eviction results are not available yet.") }
+                }
+                items(pack?.evictions.orEmpty(), key = { "${it.week}-${it.day}-${it.date}" }) { eviction ->
+                    PbbPanel("Week ${eviction.week ?: "—"}", Color(0xFFFFF3E0)) {
+                        eviction.date?.let { Text(it) }
+                        eviction.voteType?.let { Text(voteTypeLabel(it), fontWeight = FontWeight.SemiBold) }
+                        eviction.deskState?.let { PbbStatusChip(it) }
+                        eviction.resultsAsOf?.let { Text("Results as of $it") }
+                        eviction.nominated.forEach { nominee ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(pack?.housemates.findHousemateName(nominee.id))
+                                Text(
+                                    listOfNotNull(
+                                        nominee.label,
+                                        nominee.percent?.let(::formatPercent),
+                                        nominee.result?.let(::statusLabel),
+                                    ).joinToString(" • ").ifBlank { "—" },
+                                    color = evictionColor(nominee.result),
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                        if (eviction.evicted.isNotEmpty()) {
+                            Text(
+                                "Evicted: ${eviction.evicted.joinToString {
+                                    pack?.housemates.findHousemateName(it)
+                                }}",
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        eviction.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                    }
                 }
             }
             PbbTab.WEEKLY_TASKS -> {
-                item { SectionHeading("Weekly Tasks") }
-                items(pack?.weeklyTasks.orEmpty()) { task ->
-                    InfoCard(
-                        buildString {
-                            append(task.title ?: "Week ${task.week ?: ""}")
-                            task.summary?.let { append("\n$it") }
-                            task.status?.let { append("\nStatus: $it") }
-                            task.date?.let { append("\n$it") }
-                        },
-                    )
+                item { SectionHeading("Weekly Tasks", centered = true) }
+                if (pack?.weeklyTasks.isNullOrEmpty()) {
+                    item { PbbEmptyState("Weekly task details are coming soon.") }
+                }
+                items(pack?.weeklyTasks.orEmpty(), key = { "${it.week}-${it.day}-${it.date}" }) { task ->
+                    PbbPanel("Week ${task.week ?: "—"}", Color(0xFFF3E5F5)) {
+                        Text(task.title ?: "Weekly Task", fontWeight = FontWeight.Bold)
+                        task.date?.let { Text(it) }
+                        task.summary?.let { Text(it) }
+                        task.status?.let { PbbStatusChip(it) }
+                        task.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                    }
                 }
             }
         }
         item { Spacer(Modifier.height(16.dp)) }
+    }
+}
+
+@Composable
+private fun PbbPanel(
+    title: String,
+    backgroundColor: Color,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val panelColor = if (isSystemInDarkTheme()) darkPbbPanelColor(backgroundColor) else backgroundColor
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = panelColor),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun PbbEmptyState(message: String) {
+    Text(
+        message,
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+}
+
+private fun darkPbbPanelColor(lightColor: Color): Color = when (lightColor) {
+    Color(0xFFE8F5E9) -> Color(0xFF203728)
+    Color(0xFFFFF3E0) -> Color(0xFF3A2D1D)
+    Color(0xFFE1F5FE) -> Color(0xFF1D3440)
+    Color(0xFFF3E5F5) -> Color(0xFF34243A)
+    else -> Color(0xFF292929)
+}
+
+@Composable
+private fun PbbStatusChip(status: String) {
+    val color = statusColor(status)
+    Surface(shape = RoundedCornerShape(8.dp), color = color.copy(alpha = 0.13f)) {
+        Text(
+            statusLabel(status),
+            Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            color = color,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
@@ -771,18 +1026,89 @@ private fun HousemateCard(housemate: Housemate, photoUrl: String?) {
             }
             Column(Modifier.padding(16.dp)) {
                 Text(
-                    housemate.displayName ?: housemate.name ?: housemate.id,
+                    housemate.displayName ?: housemate.name ?: housemate.id.toDisplayName(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                housemate.moniker?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                listOfNotNull(housemate.status, housemate.hometown, housemate.place?.let { "Place: $it" })
-                    .joinToString(" • ")
-                    .takeIf { it.isNotBlank() }
-                    ?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                housemate.moniker?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = MaterialTheme.colorScheme.primary)
+                }
+                housemate.status?.let { PbbStatusChip(it) }
+                listOfNotNull(
+                    housemate.type,
+                    housemate.ageOnEntry?.let { "$it years old" },
+                    housemate.hometown,
+                ).takeIf { it.isNotEmpty() }?.let {
+                    Text(it.joinToString(" • "), style = MaterialTheme.typography.bodySmall)
+                }
+                listOfNotNull(
+                    housemate.dayEntered?.let { "Entered Day $it" },
+                    housemate.dayExited?.let { "Exited Day $it" },
+                    housemate.pairId?.let { "Pair: ${it.toDisplayName()}" },
+                ).takeIf { it.isNotEmpty() }?.let {
+                    Text(it.joinToString(" • "), style = MaterialTheme.typography.bodySmall)
+                }
+                housemate.nominationPoints?.let {
+                    Text("Nomination points: $it", style = MaterialTheme.typography.bodySmall)
+                }
+                housemate.votePercent?.let {
+                    Text("Vote share: ${formatPercent(it)}", style = MaterialTheme.typography.bodySmall)
+                }
+                housemate.votePercentFinale?.let {
+                    Text("Finale votes: ${formatPercent(it)}", style = MaterialTheme.typography.bodySmall)
+                }
+                housemate.place?.takeIf { it > 0 }?.let {
+                    Text("Place: $it", style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }
+}
+
+private fun List<Housemate>?.findHousemateName(id: String?): String {
+    if (id.isNullOrBlank()) return "Housemate"
+    val housemate = this?.firstOrNull { it.id == id }
+    return housemate?.displayName ?: housemate?.name ?: id.toDisplayName()
+}
+
+private fun String.toDisplayName(): String = replace('-', ' ').split(' ').joinToString(" ") {
+    it.replaceFirstChar { first -> first.uppercase() }
+}
+
+private fun statusLabel(value: String): String = value.replace('_', ' ').trim().uppercase()
+
+private fun statusColor(status: String): Color = when (status.lowercase()) {
+    "safe", "saved", "passed", "success", "winner" -> Color(0xFF2E7D32)
+    "nominated", "yellow", "pending" -> Color(0xFFF57F17)
+    "evicted", "red", "failed" -> Color(0xFFC62828)
+    "not_nominated", "blue" -> Color(0xFF0D47A1)
+    else -> Color(0xFF0277BD)
+}
+
+private fun nominationColor(state: String?): Color = when (state?.lowercase()) {
+    "nominated" -> Color(0xFFC62828)
+    "not_nominated" -> Color(0xFF0D47A1)
+    "ineligible" -> Color(0xFF757575)
+    else -> Color(0xFF0277BD)
+}
+
+private fun evictionColor(result: String?): Color = when (result?.lowercase()) {
+    "saved" -> Color(0xFF2E7D32)
+    "evicted" -> Color(0xFFC62828)
+    "winner" -> Color(0xFF0D47A1)
+    else -> Color(0xFF0277BD)
+}
+
+private fun voteTypeLabel(value: String): String = when (value.lowercase()) {
+    "save_evict" -> "Save or Evict Voting"
+    "save" -> "Save Voting"
+    "finale" -> "Finale"
+    else -> value.replace('_', ' ').replaceFirstChar { it.uppercase() }
+}
+
+private fun formatPercent(value: Double): String {
+    val hundredths = (value * 100).roundToInt()
+    return "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')}%"
 }
 
 @Composable
@@ -901,6 +1227,9 @@ private fun ArticleCard(
                     )
                 }
                 if (article.tags.isNotEmpty()) {
+                    if (showExcerpt && article.excerpt.isNotBlank()) {
+                        Spacer(Modifier.height(14.dp))
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         article.tags.take(4).forEach { tag ->
                             Surface(
@@ -961,16 +1290,6 @@ internal fun articleImageRequest(article: Article): ImageRequest {
                 httpHeaders(headers.build())
             }
             .build()
-    }
-}
-
-@Composable
-private fun InfoCard(text: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
-        shape = RoundedCornerShape(10.dp),
-    ) {
-        Text(text, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
     }
 }
 
