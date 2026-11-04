@@ -28,6 +28,11 @@ import io.ktor.client.engine.darwin.Darwin
 import kotlinx.coroutines.CancellationException
 import platform.Foundation.NSData
 import platform.Foundation.NSUserDefaults
+import platform.UIKit.UIActivityViewController
+import platform.UIKit.UIApplication
+import platform.UIKit.UIDevice
+import platform.UIKit.UIUserInterfaceIdiomPad
+import platform.UIKit.UIModalPresentationPageSheet
 import platform.Foundation.dataWithBytes
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageView
@@ -36,6 +41,24 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 actual fun platform() = "iOS"
+
+actual fun isTabletDevice() = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad
+
+actual fun shareArticle(title: String, url: String) {
+    val keyWindow = UIApplication.sharedApplication.keyWindow
+        ?: error("Unable to share this post because the iOS window is unavailable.")
+    val rootViewController = keyWindow.rootViewController
+        ?: error("Unable to share this post because the iOS view controller is unavailable.")
+    val shareText = if (url.isBlank()) title else "$title\n$url"
+    val activityViewController = UIActivityViewController(
+        activityItems = listOf(shareText),
+        applicationActivities = null,
+    )
+    if (isTabletDevice()) {
+        activityViewController.modalPresentationStyle = UIModalPresentationPageSheet
+    }
+    rootViewController.presentViewController(activityViewController, animated = true, completion = null)
+}
 
 actual fun createPlatformHttpClientEngine(): HttpClientEngine = Darwin.create()
 

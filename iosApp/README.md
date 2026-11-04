@@ -23,10 +23,10 @@ nominations, and evictions, plus optional PHCA feed topics. To activate
 Firebase, add the real `GoogleService-Info.plist` for Firebase project
 `device-streaming-bafa1723` and bundle ID `com.drpsphca.app.ios` to the app
 target at `iosApp/iosApp/GoogleService-Info.plist`; the Xcode project bundles
-it as an app resource, and `PBBNotificationDelegate` initializes Firebase
-before subscribing to topics. Push delivery also requires a valid APNs key and
-matching signing/provisioning configuration. The Android font files, logos,
-navigation drawables, launcher artwork, tag background, and app strings are
-available from shared Compose resources. Android-only resource declarations
-(such as backup rules, widget configuration, and network security
+it as an app resource, and `PBBFirebaseBridge` initializes Firebase before
+`PBBNotificationDelegate` subscribes to topics. Push delivery also requires a
+valid APNs key and matching signing/provisioning configuration. Android font
+files, logos, navigation drawables, launcher artwork, tag background, and app
+strings are available from shared Compose resources. Android-only resource
+declarations (such as backup rules, widget configuration, and network security
 configuration) are not copied because iOS uses separate platform equivalents.

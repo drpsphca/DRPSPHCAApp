@@ -1,5 +1,3 @@
-import FirebaseCore
-import FirebaseMessaging
 import UIKit
 import UserNotifications
 
@@ -36,8 +34,8 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        guard FirebaseApp.app() != nil else { return }
-        Messaging.messaging().apnsToken = deviceToken
+        guard PBBFirebaseBridge.isConfigured() else { return }
+        PBBFirebaseBridge.setAPNSToken(deviceToken)
         subscribeToTopics()
     }
 
@@ -75,12 +73,7 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
     }
 
     private func configureFirebase() -> Bool {
-        guard Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil else {
-            NSLog("Firebase Messaging is not configured: GoogleService-Info.plist is missing from the iOS app target.")
-            return false
-        }
-
-        guard FirebaseApp.app() != nil else {
+        guard PBBFirebaseBridge.isConfigured() else {
             NSLog("Firebase Messaging is not configured before notification setup.")
             return false
         }
@@ -89,11 +82,7 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
 
     private func subscribeToTopics() {
         for topic in topics {
-            Messaging.messaging().subscribe(toTopic: topic) { error in
-                if let error {
-                    NSLog("Firebase topic subscription failed for %@: %@", topic, error.localizedDescription)
-                }
-            }
+            PBBFirebaseBridge.subscribe(toTopic: topic)
         }
     }
 }

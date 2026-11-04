@@ -6,6 +6,10 @@ import io.ktor.client.engine.HttpClientEngine
 
 expect fun platform(): String
 
+expect fun isTabletDevice(): Boolean
+
+expect fun shareArticle(title: String, url: String)
+
 expect fun createPlatformHttpClientEngine(): HttpClientEngine
 
 @Composable

@@ -14,6 +14,10 @@ import io.ktor.client.engine.okhttp.OkHttp
 
 actual fun platform() = "Android"
 
+actual fun isTabletDevice() = false
+
+actual fun shareArticle(title: String, url: String) = Unit
+
 actual fun createPlatformHttpClientEngine(): HttpClientEngine = OkHttp.create()
 
 @Composable
