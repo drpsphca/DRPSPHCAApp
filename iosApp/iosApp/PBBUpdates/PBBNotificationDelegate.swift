@@ -38,6 +38,7 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         guard FirebaseApp.app() != nil else { return }
         Messaging.messaging().apnsToken = deviceToken
+        subscribeToTopics()
     }
 
     func userNotificationCenter(
@@ -79,7 +80,14 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
             return false
         }
 
-        FirebaseApp.configure()
+        guard FirebaseApp.app() != nil else {
+            NSLog("Firebase Messaging is not configured before notification setup.")
+            return false
+        }
+        return true
+    }
+
+    private func subscribeToTopics() {
         for topic in topics {
             Messaging.messaging().subscribe(toTopic: topic) { error in
                 if let error {
@@ -87,6 +95,5 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
                 }
             }
         }
-        return true
     }
 }

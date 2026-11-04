@@ -3,9 +3,12 @@
 The iOS target embeds the `sharedKit` framework built from `:shared` and hosts
 the shared Compose UI in a SwiftUI app.
 
-Open `iosApp.xcodeproj` in Xcode and run the `iosApp` scheme on an iOS
-simulator or device. The Xcode build phase invokes Gradle to build and embed
-the framework; use the repository's Gradle wrapper and ensure Java is available.
+Run `pod install` from `iosApp/` after cloning or changing `Podfile`, then open
+`iosApp.xcworkspace` in Xcode or select the shared `iosApp` run configuration
+in Android Studio. CocoaPods provides FirebaseCore and FirebaseMessaging to
+both IDEs without relying on Xcode-only Swift Package resolution. The Xcode
+build phase invokes Gradle to build and embed the shared framework; Java is
+required.
 
 The shared Compose app provides native screens for Home, Blog, Newsletter,
 TV Ad Listings, and PBB Updates, plus a Bite-sized filter within Blog.
@@ -19,10 +22,11 @@ target includes Firebase Messaging integration for PBB announcements,
 nominations, and evictions, plus optional PHCA feed topics. To activate
 Firebase, add the real `GoogleService-Info.plist` for Firebase project
 `device-streaming-bafa1723` and bundle ID `com.drpsphca.app.ios` to the app
-target. The configuration file is intentionally not checked in because it
-must come from the Firebase project owner. Push delivery also requires a valid
-APNs key and matching signing/provisioning configuration. The Android font
-files, logos, navigation drawables, launcher artwork, tag background, and app
-strings are available from shared Compose resources. Android-only resource
-declarations (such as backup rules, widget configuration, and network security
+target at `iosApp/iosApp/GoogleService-Info.plist`; the Xcode project bundles
+it as an app resource, and `PBBNotificationDelegate` initializes Firebase
+before subscribing to topics. Push delivery also requires a valid APNs key and
+matching signing/provisioning configuration. The Android font files, logos,
+navigation drawables, launcher artwork, tag background, and app strings are
+available from shared Compose resources. Android-only resource declarations
+(such as backup rules, widget configuration, and network security
 configuration) are not copied because iOS uses separate platform equivalents.

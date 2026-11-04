@@ -12,16 +12,19 @@
 		A10000000000000000000002 /* iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* iosApp.swift */; };
 		A10000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Assets.xcassets */; };
 		A10000000000000000000005 /* PBBNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PBBNotificationDelegate.swift */; };
-		A10000000000000000000006 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A90000000000000000000001 /* FirebaseMessaging */; };
+		D16C435E7400BCC78BF9781A /* Pods_iosApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288907E1ADD78013D66F3A5D /* Pods_iosApp.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		288907E1ADD78013D66F3A5D /* Pods_iosApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_iosApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F6163C2309AF8960082B9FF /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A20000000000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iosApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000000000000000000005 /* PBBNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PBBNotificationDelegate.swift; sourceTree = "<group>"; };
+		C71FF6B52A26D7AC30ADB294 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
+		DDAF4B77AE6B65D700E760CF /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -29,18 +32,38 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000006 /* FirebaseMessaging in Frameworks */,
+				D16C435E7400BCC78BF9781A /* Pods_iosApp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0A3B4BDECD6F763FA80007A9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				288907E1ADD78013D66F3A5D /* Pods_iosApp.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		5AC7F6EDD18DF09EEB88DB6B /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				DDAF4B77AE6B65D700E760CF /* Pods-iosApp.debug.xcconfig */,
+				C71FF6B52A26D7AC30ADB294 /* Pods-iosApp.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		A40000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
 				A40000000000000000000002 /* iosApp */,
 				A40000000000000000000003 /* Products */,
+				5AC7F6EDD18DF09EEB88DB6B /* Pods */,
+				0A3B4BDECD6F763FA80007A9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -79,19 +102,18 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A70000000000000000000002 /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
+				38968A792A4BFC475120C2DA /* [CP] Check Pods Manifest.lock */,
 				A30000000000000000000002 /* Gradle Embed Framework */,
 				A30000000000000000000003 /* Sources */,
 				A30000000000000000000001 /* Frameworks */,
 				A30000000000000000000004 /* Resources */,
+				E36A784E77C61874AE639F8A /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = iosApp;
-			packageProductDependencies = (
-				A90000000000000000000001 /* FirebaseMessaging */,
-			);
 			productName = iosApp;
 			productReference = A20000000000000000000003 /* iosApp.app */;
 			productType = "com.apple.product-type.application";
@@ -124,9 +146,6 @@
 				Base,
 			);
 			mainGroup = A40000000000000000000001;
-			packageReferences = (
-				A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-			);
 			productRefGroup = A40000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -149,6 +168,28 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		38968A792A4BFC475120C2DA /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-iosApp-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
 		A30000000000000000000002 /* Gradle Embed Framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -166,7 +207,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\" && ./gradlew :shared:embedAndSignAppleFrameworkForXcode";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nif [ -z \"$JAVA_HOME\" ] || [ ! -x \"$JAVA_HOME/bin/java\" ]; then\n  for jdk in \"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" \"$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home\"; do\n    if [ -x \"$jdk/bin/java\" ]; then\n      export JAVA_HOME=\"$jdk\"\n      break\n    fi\n  done\nfi\nif [ -n \"$JAVA_HOME\" ]; then\n  export PATH=\"$JAVA_HOME/bin:$PATH\"\nfi\ncd \"$SRCROOT/..\" && ./gradlew :shared:embedAndSignAppleFrameworkForXcode";
+		};
+		E36A784E77C61874AE639F8A /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources.sh\"\n";
+			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -206,9 +264,11 @@
 		};
 		A80000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DDAF4B77AE6B65D700E760CF /* Pods-iosApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
@@ -235,9 +295,11 @@
 		};
 		A80000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C71FF6B52A26D7AC30ADB294 /* Pods-iosApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
@@ -284,25 +346,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 11.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A90000000000000000000001 /* FirebaseMessaging */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseMessaging;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A60000000000000000000001 /* Project object */;
 }
