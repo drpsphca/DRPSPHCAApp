@@ -1,0 +1,10 @@
+package com.drpsphca.shared
+
+internal object WordPressAuthConfig {
+    const val MAIN_API_URL = "${MAIN_API_URL}"
+    const val MAIN_AUTHORIZATION = "${MAIN_AUTHORIZATION}"
+    const val TVAL_API_URL = "${TVAL_API_URL}"
+    const val TVAL_AUTHORIZATION = "${TVAL_AUTHORIZATION}"
+    const val APP_API_URL = "${APP_API_URL}"
+    const val APP_AUTHORIZATION = "${APP_AUTHORIZATION}"
+}

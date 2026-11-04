@@ -2882,7 +2882,11 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
                     Icon(
                         painter = painterResource(id = screen.icon),
                         contentDescription = screen.label,
-                        tint = tint,
+                        tint = if (screen == Screen.TVAdListings || screen == Screen.PbbUpdates) {
+                            Color.Unspecified
+                        } else {
+                            tint
+                        },
                         modifier = Modifier.height(32.dp).padding(bottom = 0.dp)
                     )
                 },

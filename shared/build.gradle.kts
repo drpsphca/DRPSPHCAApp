@@ -1,9 +1,48 @@
+import org.gradle.api.tasks.Copy
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.android.lint)
+}
+
+val wordpressAuthConfigDir = layout.buildDirectory.dir("generated/wordpressAuth/commonMain")
+fun wordpressAuthorization(apiKey: String): String {
+    if (apiKey.isBlank()) return ""
+    return "Bearer $apiKey"
+}
+val wordpressAuthConfigTokens = mapOf(
+    "MAIN_API_URL" to providers.gradleProperty("WORDPRESS_API_URL")
+        .getOrElse("https://drpsphca.com/wp-json/"),
+    "MAIN_AUTHORIZATION" to wordpressAuthorization(
+        providers.gradleProperty("WORDPRESS_API_KEY").getOrElse(""),
+    ),
+    "TVAL_API_URL" to providers.gradleProperty("TVAL_API_URL")
+        .getOrElse("https://tval.drpsphca.com/wp-json/"),
+    "TVAL_AUTHORIZATION" to wordpressAuthorization(
+        providers.gradleProperty("TVAL_API_KEY").getOrElse(""),
+    ),
+    "APP_API_URL" to providers.gradleProperty("APPX_API_URL")
+        .getOrElse("https://app.drpsphca.com/wp-json/"),
+    "APP_AUTHORIZATION" to wordpressAuthorization(
+        providers.gradleProperty("APPX_API_KEY").getOrElse(""),
+    ),
+)
+val wordpressAuthConfig = tasks.register<Copy>("generateWordPressAuthConfig") {
+    from("src/wordpressAuth/WordPressAuthConfig.kt.template")
+    into(wordpressAuthConfigDir)
+    rename { "WordPressAuthConfig.kt" }
+    expand(wordpressAuthConfigTokens)
+    filteringCharset = "UTF-8"
+    outputs.upToDateWhen { false }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.drpsphca.shared.resources"
 }
 
 kotlin {
@@ -60,12 +99,21 @@ kotlin {
     // See: https://kotlinlang.org/docs/multiplatform-hierarchy.html
     sourceSets {
         commonMain {
+            kotlin.srcDir(wordpressAuthConfig)
             dependencies {
                 implementation(libs.kotlin.stdlib)
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.material3)
+                implementation(compose.materialIconsExtended)
                 implementation(compose.ui)
+                implementation(compose.components.resources)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.kotlinx.json)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.coil.compose.multiplatform)
+                implementation(libs.coil.network.ktor3)
             }
         }
 
@@ -77,6 +125,7 @@ kotlin {
 
         androidMain {
             dependencies {
+                implementation(libs.ktor.client.okhttp)
                 // Add Android-specific dependencies here. Note that this source set depends on
                 // commonMain by default and will correctly pull the Android artifacts of any KMP
                 // dependencies declared in commonMain.
@@ -93,6 +142,7 @@ kotlin {
 
         iosMain {
             dependencies {
+                implementation(libs.ktor.client.darwin)
                 // Add iOS-specific dependencies here. This a source set created by Kotlin Gradle
                 // Plugin (KGP) that each specific iOS target (e.g., iosX64) depends on as
                 // part of KMP’s default source set hierarchy. Note that this source set depends
