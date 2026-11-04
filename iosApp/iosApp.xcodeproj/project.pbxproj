@@ -12,6 +12,7 @@
 		A10000000000000000000002 /* iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* iosApp.swift */; };
 		A10000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Assets.xcassets */; };
 		A10000000000000000000005 /* PBBNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* PBBNotificationDelegate.swift */; };
+		A10000000000000000000006 /* PBBFirebaseBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* PBBFirebaseBridge.m */; };
 		D16C435E7400BCC78BF9781A /* Pods_iosApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288907E1ADD78013D66F3A5D /* Pods_iosApp.framework */; };
 /* End PBXBuildFile section */
 
@@ -23,6 +24,9 @@
 		A20000000000000000000003 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000000000000000000005 /* PBBNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PBBNotificationDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* PBBFirebaseBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PBBFirebaseBridge.m; sourceTree = "<group>"; };
+		A20000000000000000000007 /* PBBFirebaseBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PBBFirebaseBridge.h; sourceTree = "<group>"; };
+		A20000000000000000000008 /* iosApp-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosApp-Bridging-Header.h"; sourceTree = "<group>"; };
 		C71FF6B52A26D7AC30ADB294 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
 		DDAF4B77AE6B65D700E760CF /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -53,7 +57,6 @@
 				DDAF4B77AE6B65D700E760CF /* Pods-iosApp.debug.xcconfig */,
 				C71FF6B52A26D7AC30ADB294 /* Pods-iosApp.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -72,6 +75,7 @@
 			children = (
 				A20000000000000000000001 /* ContentView.swift */,
 				A20000000000000000000002 /* iosApp.swift */,
+				A20000000000000000000008 /* iosApp-Bridging-Header.h */,
 				A20000000000000000000004 /* Assets.xcassets */,
 				A40000000000000000000004 /* PBBUpdates */,
 				6F6163C2309AF8960082B9FF /* GoogleService-Info.plist */,
@@ -91,6 +95,8 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000005 /* PBBNotificationDelegate.swift */,
+				A20000000000000000000006 /* PBBFirebaseBridge.m */,
+				A20000000000000000000007 /* PBBFirebaseBridge.h */,
 			);
 			path = PBBUpdates;
 			sourceTree = "<group>";
@@ -217,9 +223,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -236,6 +246,7 @@
 				A10000000000000000000001 /* ContentView.swift in Sources */,
 				A10000000000000000000002 /* iosApp.swift in Sources */,
 				A10000000000000000000005 /* PBBNotificationDelegate.swift in Sources */,
+				A10000000000000000000006 /* PBBFirebaseBridge.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -288,6 +299,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.drpsphca.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -319,6 +331,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.drpsphca.app.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

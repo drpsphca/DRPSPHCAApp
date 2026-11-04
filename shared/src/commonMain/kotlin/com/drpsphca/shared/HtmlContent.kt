@@ -16,12 +16,14 @@ internal enum class HtmlBlockType {
     LIST_ITEM,
     CODE,
     RULE,
+    IMAGE,
 }
 
 internal data class HtmlBlock(
     val type: HtmlBlockType,
     val text: AnnotatedString,
     val headingLevel: Int = 0,
+    val imageUrl: String? = null,
 )
 
 private data class InlineTag(val name: String, val value: String? = null)
@@ -30,6 +32,7 @@ private data class ListContext(val ordered: Boolean, var itemNumber: Int = 0)
 private val htmlTokens = Regex("""(?s)<[^>]*>|[^<]+""")
 private val tagName = Regex("""^</?\s*([a-zA-Z0-9]+)""")
 private val hrefAttribute = Regex("""(?i)\bhref\s*=\s*["']([^"']+)["']""")
+private val srcAttribute = Regex("""(?i)\bsrc\s*=\s*["']([^"']+)["']""")
 
 internal fun htmlArticleBlocks(html: String): List<HtmlBlock> {
     val blocks = mutableListOf<HtmlBlock>()
@@ -150,6 +153,20 @@ internal fun htmlArticleBlocks(html: String): List<HtmlBlock> {
                 }
             }
             "br" -> text.append("\n")
+            "img" -> {
+                if (!closing) {
+                    srcAttribute.find(token)?.groupValues?.getOrNull(1)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { imageUrl ->
+                            flush()
+                            blocks += HtmlBlock(
+                                type = HtmlBlockType.IMAGE,
+                                text = AnnotatedString(""),
+                                imageUrl = imageUrl,
+                            )
+                        }
+                }
+            }
             "hr" -> {
                 flush()
                 blocks += HtmlBlock(HtmlBlockType.RULE, AnnotatedString("—"))

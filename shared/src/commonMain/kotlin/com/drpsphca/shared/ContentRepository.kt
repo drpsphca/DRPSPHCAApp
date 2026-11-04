@@ -257,6 +257,64 @@ internal class ContentRepository(engine: HttpClientEngine) {
         )
     }
 
+    suspend fun wordpressArticlesByTag(
+        endpoint: WordPressEndpoint,
+        categorySlug: String,
+        tagName: String,
+    ): List<Article> {
+        endpoint.requireAuthorization()
+        val categories = client.get("${endpoint.apiUrl.trimEnd('/')}/wp/v2/categories") {
+            header(HttpHeaders.Authorization, endpoint.authorization)
+            header(HttpHeaders.UserAgent, "com.drpsphca.app")
+            parameter("slug", categorySlug)
+            parameter("per_page", 100)
+        }.let { parseJsonArray(it.bodyAsText(), "categories from ${endpoint.apiUrl}") }
+        val categoryId = categories.firstOrNull {
+            it.jsonObject["slug"]?.stringValue() == categorySlug
+        }?.jsonObject?.get("id")?.stringValue()
+            ?: error("WordPress category '$categorySlug' was not found.")
+
+        val tags = client.get("${endpoint.apiUrl.trimEnd('/')}/wp/v2/tags") {
+            header(HttpHeaders.Authorization, endpoint.authorization)
+            header(HttpHeaders.UserAgent, "com.drpsphca.app")
+            parameter("search", tagName)
+            parameter("per_page", 100)
+        }.let { parseJsonArray(it.bodyAsText(), "tags from ${endpoint.apiUrl}") }
+        val tagId = tags.firstOrNull {
+            it.jsonObject["name"]?.stringValue()?.equals(tagName, ignoreCase = true) == true
+        }?.jsonObject?.get("id")?.stringValue()
+            ?: return emptyList()
+
+        val posts = mutableListOf<JsonElement>()
+        var page = 1
+        var totalPages: Int? = null
+        do {
+            val response = client.get("${endpoint.apiUrl.trimEnd('/')}/wp/v2/posts") {
+                header(HttpHeaders.Authorization, endpoint.authorization)
+                header(HttpHeaders.UserAgent, "com.drpsphca.app")
+                parameter("_embed", "1")
+                parameter("per_page", 10)
+                parameter("page", page)
+                parameter("categories", categoryId)
+                parameter("tags", tagId)
+            }
+            val pagePosts = parseJsonArray(
+                response.bodyAsText(),
+                "posts tagged '$tagName' from ${endpoint.apiUrl} (page $page)",
+            )
+            posts.addAll(pagePosts)
+            totalPages = response.headers["X-WP-TotalPages"]?.toIntOrNull()
+                ?.coerceAtLeast(page) ?: totalPages
+            if (totalPages == null && pagePosts.size < 10) break
+            page++
+        } while (totalPages == null || page <= totalPages)
+
+        val origin = Regex("""^https?://[^/]+""")
+            .find(endpoint.apiUrl)?.value
+            ?: error("Invalid WordPress API URL: ${endpoint.apiUrl}")
+        return parseWordPressPosts(JsonArray(posts), endpoint.authorization, origin)
+    }
+
     suspend fun searchAllWordPress(query: String): List<Article> {
         require(query.isNotBlank()) { "Enter a search term." }
         return coroutineScope {
@@ -269,8 +327,55 @@ internal class ContentRepository(engine: HttpClientEngine) {
         }
     }
 
-    private suspend fun searchWordPress(endpoint: WordPressEndpoint, query: String): List<Article> {
+    suspend fun searchIosPosts(sectionIndex: Int, query: String): List<Article> {
+        require(query.isNotBlank()) { "Enter a search term." }
+        return when (sectionIndex) {
+            0, 1 -> searchBlogAndBiteSized(query.trim())
+            3 -> searchWordPress(WordPressEndpoints.tval, query.trim())
+            else -> error("Search is not available in this section.")
+        }
+    }
+
+    private suspend fun searchBlogAndBiteSized(query: String): List<Article> = coroutineScope {
+        listOf(
+            async {
+                searchWordPress(
+                    WordPressEndpoints.main,
+                    query,
+                    categorySlug = "blog",
+                )
+            },
+            async {
+                searchWordPress(
+                    WordPressEndpoints.app,
+                    query,
+                    categorySlug = "app",
+                )
+            },
+        ).awaitAll()
+            .flatten()
+            .distinctBy { it.url }
+            .sortedByDescending { it.date }
+    }
+
+    private suspend fun searchWordPress(
+        endpoint: WordPressEndpoint,
+        query: String,
+        categorySlug: String? = null,
+    ): List<Article> {
         endpoint.requireAuthorization()
+        val categoryId = categorySlug?.let { slug ->
+            val categories = client.get("${endpoint.apiUrl.trimEnd('/')}/wp/v2/categories") {
+                header(HttpHeaders.Authorization, endpoint.authorization)
+                header(HttpHeaders.UserAgent, "com.drpsphca.app")
+                parameter("slug", slug)
+                parameter("per_page", 100)
+            }.let { parseJsonArray(it.bodyAsText(), "categories from ${endpoint.apiUrl}") }
+            categories.firstOrNull {
+                it.jsonObject["slug"]?.stringValue() == slug
+            }?.jsonObject?.get("id")?.stringValue()
+                ?: error("WordPress category '$slug' was not found.")
+        }
         val origin = Regex("""^https?://[^/]+""")
             .find(endpoint.apiUrl)?.value
             ?: error("Invalid WordPress API URL: ${endpoint.apiUrl}")
@@ -285,6 +390,7 @@ internal class ContentRepository(engine: HttpClientEngine) {
                 parameter("search", query)
                 parameter("per_page", 10)
                 parameter("page", page)
+                categoryId?.let { parameter("categories", it) }
             }
             totalPages = response.headers["X-WP-TotalPages"]?.toIntOrNull()?.coerceAtLeast(page) ?: page
             val pagePosts = parseJsonArray(

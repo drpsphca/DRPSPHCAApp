@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +23,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +38,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,6 +57,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.ContactSupport
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -79,6 +87,12 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.ImageLoader
@@ -176,6 +190,11 @@ fun SharedApp() {
 
     var selectedSection by rememberSaveable { mutableIntStateOf(0) }
     var selectedArticle by remember { mutableStateOf<Article?>(null) }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+    var taggedArticles by remember { mutableStateOf<List<Article>>(emptyList()) }
+    var isTagLoading by remember { mutableStateOf(false) }
+    var tagError by remember { mutableStateOf<String?>(null) }
+    var tagRequestId by remember { mutableIntStateOf(0) }
     var biteSized by rememberSaveable { mutableStateOf(false) }
     var pbbTab by rememberSaveable { mutableStateOf(PbbTab.OVERVIEW) }
     var pbbSection by rememberSaveable { mutableStateOf(PbbSection.LIVE) }
@@ -201,6 +220,8 @@ fun SharedApp() {
     val keyboardController = LocalSoftwareKeyboardController.current
     val repository = remember { ContentRepository(createPlatformHttpClientEngine()) }
     val section = sections[selectedSection]
+    val isIosSearchMode =
+        platform() == "iOS" && searchVisible && selectedSection in setOf(0, 1, 3)
 
     fun submitSearch() {
         val query = searchQuery.trim()
@@ -218,7 +239,11 @@ fun SharedApp() {
         keyboardController?.hide()
         scope.launch {
             try {
-                val results = repository.searchAllWordPress(query)
+                val results = if (platform() == "iOS") {
+                    repository.searchIosPosts(selectedSection, query)
+                } else {
+                    repository.searchAllWordPress(query)
+                }
                 if (requestId == searchRequestId) searchResults = results
             } catch (exception: Exception) {
                 if (requestId == searchRequestId) {
@@ -230,6 +255,44 @@ fun SharedApp() {
             }
         }
     }
+
+    fun openTag(tag: String) {
+        val requestId = ++tagRequestId
+        selectedSection = 1
+        biteSized = false
+        selectedArticle = null
+        selectedTag = tag
+        taggedArticles = emptyList()
+        isTagLoading = true
+        tagError = null
+        searchQuery = ""
+        searchVisible = false
+        searchSubmitted = false
+        searchRequestId++
+        searchLoading = false
+        searchError = null
+        searchResults = emptyList()
+        scope.launch {
+            try {
+                val results = repository.wordpressArticlesByTag(
+                    WordPressEndpoints.main,
+                    categorySlug = "blog",
+                    tagName = tag,
+                )
+                if (requestId == tagRequestId) taggedArticles = results
+            } catch (exception: Exception) {
+                if (requestId == tagRequestId) {
+                    tagError = exception.message
+                        ?: "Unable to load posts for this tag. Check your connection and try again."
+                }
+            } finally {
+                if (requestId == tagRequestId) isTagLoading = false
+            }
+        }
+    }
+
+    val onTagClick: ((String) -> Unit)? =
+        if (platform() == "iOS") ({ tag -> openTag(tag) }) else null
 
     fun loadContent(index: Int = selectedSection) {
         scope.launch {
@@ -319,6 +382,7 @@ fun SharedApp() {
                     searchVisible = false
                     searchSubmitted = false
                     selectedArticle = null
+                    selectedTag = null
                     route.url?.let { postUrl ->
                         scope.launch {
                             try {
@@ -390,258 +454,401 @@ fun SharedApp() {
         CompositionLocalProvider(LocalPhcaImageLoader provides imageLoader) {
         Scaffold(
             topBar = {
-                Surface(
-                    modifier = Modifier.statusBarsPadding(),
-                    color = MaterialTheme.colorScheme.surface,
+                if (
+                    platform() == "iOS" &&
+                    (selectedArticle != null || selectedTag != null || isIosSearchMode)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            contentAlignment = Alignment.Center,
+                    Surface(
+                        modifier = Modifier.statusBarsPadding(),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 0.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SectionLogo(selectedSection)
-                            Box(Modifier.align(Alignment.CenterEnd)) {
+                            IconButton(
+                                onClick = {
+                                    when {
+                                        selectedArticle != null -> selectedArticle = null
+                                        selectedTag != null -> {
+                                            selectedTag = null
+                                            tagRequestId++
+                                        }
+                                        else -> {
+                                            searchVisible = false
+                                            searchQuery = ""
+                                            searchSubmitted = false
+                                            searchRequestId++
+                                            searchLoading = false
+                                            searchError = null
+                                            searchResults = emptyList()
+                                            keyboardController?.hide()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.Black,
+                                )
+                            }
+                            if (isIosSearchMode) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = {
+                                        searchQuery = it
+                                        searchRequestId++
+                                        searchLoading = false
+                                        searchSubmitted = false
+                                        searchError = null
+                                        searchResults = emptyList()
+                                    },
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                    singleLine = true,
+                                    placeholder = {
+                                        Text(
+                                            if (selectedSection == 0 || selectedSection == 1) {
+                                                "Search Blog and Bite-sized"
+                                            } else {
+                                                "Search ${section.title}"
+                                            },
+                                        )
+                                    },
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
+                                )
+                            } else {
+                                Text(
+                                    when {
+                                        selectedTag != null -> "Posts tagged \"$selectedTag\""
+                                        selectedSection == 1 && biteSized -> "Bite-sized"
+                                        selectedSection == 3 -> "TV Ad Listing"
+                                        selectedSection == 4 -> "PBB Announcement"
+                                        else -> "Post"
+                                    },
+                                    color = Color.Black,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(Modifier.weight(1f))
+                            }
+                            if (selectedArticle != null) {
+                                IconButton(
+                                    onClick = {
+                                        selectedArticle?.let { shareArticle(it.title, it.url) }
+                                    },
+                                ) {
+                                    Icon(Icons.Filled.Share, contentDescription = "Share post")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier.statusBarsPadding(),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                SectionLogo(selectedSection)
+                                Box(Modifier.align(Alignment.CenterEnd)) {
+                                    TextButton(
+                                        onClick = { moreMenuExpanded = true },
+                                        modifier = Modifier.size(48.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Menu,
+                                            contentDescription = "Menu",
+                                            modifier = Modifier.size(24.dp),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = moreMenuExpanded,
+                                        onDismissRequest = { moreMenuExpanded = false },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Refresh") },
+                                            trailingIcon = {
+                                                Icon(Icons.Filled.Refresh, contentDescription = null)
+                                            },
+                                            onClick = {
+                                                refreshCount++
+                                                moreMenuExpanded = false
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Contact Us") },
+                                            trailingIcon = {
+                                                Icon(Icons.AutoMirrored.Filled.ContactSupport, contentDescription = null)
+                                            },
+                                            onClick = {
+                                                selectedArticle = Article(
+                                                    title = "Contact Us",
+                                                    content = "Main Email Address: hello@drpsphca.com\n\n" +
+                                                        "Press Contact: telltofree@drpsphca.com\n\n" +
+                                                        "App Feedback: telltophcaapp@drpsphca.com\n\n" +
+                                                        "DRPS PHCA TVAL: telltotval@drpsphca.com\n\n" +
+                                                        "Phone (SMS/Viber): +63 993 733 7082\n\n" +
+                                                        "App content is powered by DRPSPHCA.com.",
+                                                    contentHtml = "<p><strong>Main Email Address</strong><br>hello@drpsphca.com</p>" +
+                                                        "<p><strong>Press Contact</strong><br>telltofree@drpsphca.com</p>" +
+                                                        "<p><strong>App Feedback</strong><br>telltophcaapp@drpsphca.com</p>" +
+                                                        "<p><strong>DRPS PHCA TVAL</strong><br>telltotval@drpsphca.com</p>" +
+                                                        "<p><strong>Phone (SMS/Viber)</strong><br>+63 993 733 7082</p>" +
+                                                        "<p>App content is powered by DRPSPHCA.com.</p>",
+                                                )
+                                                moreMenuExpanded = false
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Rate This App") },
+                                            trailingIcon = {
+                                                Icon(Icons.Filled.Star, contentDescription = null)
+                                            },
+                                            onClick = { moreMenuExpanded = false },
+                                        )
+                                    }
+                                }
                                 TextButton(
-                                    onClick = { moreMenuExpanded = true },
-                                    modifier = Modifier.size(48.dp),
+                                    onClick = {
+                                        if (!searchVisible) {
+                                            searchVisible = true
+                                        } else if (searchQuery.isNotBlank()) {
+                                            submitSearch()
+                                        } else {
+                                            searchVisible = false
+                                            searchSubmitted = false
+                                        }
+                                    },
+                                    modifier = Modifier.align(Alignment.CenterStart).size(48.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Menu,
-                                        contentDescription = "Menu",
+                                        imageVector = Icons.Filled.Search,
+                                        contentDescription = "Search posts",
                                         modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
-                                DropdownMenu(
-                                    expanded = moreMenuExpanded,
-                                    onDismissRequest = { moreMenuExpanded = false },
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Refresh") },
-                                        trailingIcon = {
-                                            Icon(Icons.Filled.Refresh, contentDescription = null)
-                                        },
-                                        onClick = {
-                                            refreshCount++
-                                            moreMenuExpanded = false
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Contact Us") },
-                                        trailingIcon = {
-                                            Icon(Icons.AutoMirrored.Filled.ContactSupport, contentDescription = null)
-                                        },
-                                        onClick = {
-                                            selectedArticle = Article(
-                                                title = "Contact Us",
-                                                content = "Main Email Address: hello@drpsphca.com\n\n" +
-                                                    "Press Contact: telltofree@drpsphca.com\n\n" +
-                                                    "App Feedback: telltophcaapp@drpsphca.com\n\n" +
-                                                    "DRPS PHCA TVAL: telltotval@drpsphca.com\n\n" +
-                                                    "Phone (SMS/Viber): +63 993 733 7082\n\n" +
-                                                    "App content is powered by DRPSPHCA.com.",
-                                                contentHtml = "<p><strong>Main Email Address</strong><br>hello@drpsphca.com</p>" +
-                                                    "<p><strong>Press Contact</strong><br>telltofree@drpsphca.com</p>" +
-                                                    "<p><strong>App Feedback</strong><br>telltophcaapp@drpsphca.com</p>" +
-                                                    "<p><strong>DRPS PHCA TVAL</strong><br>telltotval@drpsphca.com</p>" +
-                                                    "<p><strong>Phone (SMS/Viber)</strong><br>+63 993 733 7082</p>" +
-                                                    "<p>App content is powered by DRPSPHCA.com.</p>",
-                                            )
-                                            moreMenuExpanded = false
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Rate This App") },
-                                        trailingIcon = {
-                                            Icon(Icons.Filled.Star, contentDescription = null)
-                                        },
-                                        onClick = { moreMenuExpanded = false },
-                                    )
-                                }
                             }
-                            TextButton(
-                                onClick = {
-                                    if (!searchVisible) {
-                                        searchVisible = true
-                                    } else if (searchQuery.isNotBlank()) {
-                                        submitSearch()
-                                    } else {
-                                        searchVisible = false
+                            if (searchVisible) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = {
+                                        searchQuery = it
+                                        searchRequestId++
+                                        searchLoading = false
                                         searchSubmitted = false
-                                    }
-                                },
-                                modifier = Modifier.align(Alignment.CenterStart).size(48.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Search,
-                                    contentDescription = "Search posts",
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                        searchError = null
+                                        searchResults = emptyList()
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    singleLine = true,
+                                    label = { Text("Search ${section.title}") },
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
                                 )
                             }
-                        }
-                        if (searchVisible) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = {
-                                    searchQuery = it
-                                    searchRequestId++
-                                    searchLoading = false
-                                    searchSubmitted = false
-                                    searchError = null
-                                    searchResults = emptyList()
-                                },
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                singleLine = true,
-                                label = { Text("Search ${section.title}") },
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
-                            )
                         }
                     }
                 }
             },
             bottomBar = {
-                Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                        .navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                AnimatedVisibility(
+                    visible = (
+                        selectedArticle == null &&
+                            selectedTag == null &&
+                            !isIosSearchMode
+                        ) || platform() != "iOS",
+                    enter = slideInVertically(
+                        animationSpec = tween(250),
+                        initialOffsetY = { it },
+                    ) + fadeIn(animationSpec = tween(250)),
+                    exit = slideOutVertically(
+                        animationSpec = tween(250),
+                        targetOffsetY = { it },
+                    ) + fadeOut(animationSpec = tween(250)),
                 ) {
-                    sections.forEachIndexed { index, item ->
-                        val selected = selectedSection == index
-                        Column(
-                            modifier = Modifier.weight(1f).height(64.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    if (selected) {
-                                        Brush.verticalGradient(
-                                            listOf(Color(0xFFE7D9FD), Color(0xFFC1C1C1)),
-                                        )
-                                    } else {
-                                        Brush.verticalGradient(
-                                            listOf(Color.Transparent, Color.Transparent),
-                                        )
+                    Row(
+                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                            .navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        sections.forEachIndexed { index, item ->
+                            val selected = selectedSection == index
+                            Column(
+                                modifier = Modifier.weight(1f).height(64.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        if (selected) {
+                                            Brush.verticalGradient(
+                                                listOf(Color(0xFFE7D9FD), Color(0xFFC1C1C1)),
+                                            )
+                                        } else {
+                                            Brush.verticalGradient(
+                                                listOf(Color.Transparent, Color.Transparent),
+                                            )
+                                        },
+                                    )
+                                    .clickable {
+                                        selectedArticle = null
+                                        selectedTag = null
+                                        tagRequestId++
+                                        selectedSection = index
+                                        searchQuery = ""
+                                        searchVisible = false
+                                        searchSubmitted = false
+                                        searchRequestId++
+                                        searchLoading = false
+                                        searchError = null
+                                        searchResults = emptyList()
+                                    }.padding(vertical = 5.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                SectionIcon(index, selected, darkMode)
+                                Text(
+                                    item.label,
+                                    maxLines = 1,
+                                    color = if (selected) sectionSelectedColor(index) else {
+                                        if (darkMode) Color.LightGray else Color(0xFF888888)
                                     },
+                                    style = MaterialTheme.typography.labelSmall,
                                 )
-                                .clickable {
-                                selectedArticle = null
-                                selectedSection = index
-                                searchQuery = ""
-                                searchVisible = false
-                                searchSubmitted = false
-                                searchRequestId++
-                                searchLoading = false
-                                searchError = null
-                                searchResults = emptyList()
-                            }.padding(vertical = 5.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            SectionIcon(index, selected, darkMode)
-                            Text(
-                                item.label,
-                                maxLines = 1,
-                                color = if (selected) sectionSelectedColor(index) else {
-                                    if (darkMode) Color.LightGray else Color(0xFF888888)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                            )
+                            }
                         }
                     }
                 }
             },
         ) { innerPadding ->
-            Column(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-            ) {
-                if (selectedArticle != null) {
-                    ArticleDetail(
-                        article = selectedArticle!!,
-                        notoSerifFont = notoSerifFont,
-                        onBack = { selectedArticle = null },
-                    )
-                } else if (searchSubmitted) {
-                    Column(Modifier.fillMaxSize()) {
-                        SectionHeading("Search Results", darkMode)
-                        if (searchQuery.isNotBlank()) {
-                            Text(
-                                "Results for \"$searchQuery\"",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                        ContentBody(
-                            isLoading = searchLoading,
-                            error = searchError,
-                            articles = searchResults,
-                            onRetry = { submitSearch() },
-                            onArticleClick = { selectedArticle = it },
-                            emptyMessage = "No posts found for \"$searchQuery\".",
-                        )
+            BoxWithConstraints(Modifier.fillMaxSize().padding(innerPadding)) {
+                val isLandscape = maxWidth > maxHeight
+                val articleColumns = if (platform() == "iOS") {
+                    if (isTabletDevice()) {
+                        if (isLandscape) 3 else 2
+                    } else {
+                        if (isLandscape) 2 else 1
                     }
                 } else {
-                    when {
-                        selectedSection == 1 -> {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                FilterButton("Blog", !biteSized) { biteSized = false }
-                                FilterButton("Bite-sized", biteSized) { biteSized = true }
+                    1
+                }
+                Column(Modifier.fillMaxSize()) {
+                    if (selectedArticle != null) {
+                        ArticleDetail(
+                            article = selectedArticle!!,
+                            notoSerifFont = notoSerifFont,
+                            onBack = { selectedArticle = null },
+                            showBackButton = platform() != "iOS",
+                        )
+                    } else if (selectedTag != null) {
+                        Column(Modifier.fillMaxSize()) {
+                            ContentBody(
+                                isLoading = isTagLoading,
+                                error = tagError,
+                                articles = taggedArticles,
+                                onRetry = { selectedTag?.let(::openTag) },
+                                onArticleClick = { selectedArticle = it },
+                                emptyMessage = "No blog posts found for this tag.",
+                                columns = articleColumns,
+                                onTagClick = onTagClick,
+                            )
+                        }
+                    } else if (searchSubmitted) {
+                        Column(Modifier.fillMaxSize()) {
+                            SectionHeading("Search Results", darkMode)
+                            if (searchQuery.isNotBlank()) {
+                                Text(
+                                    "Results for \"$searchQuery\"",
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
                             }
                             ContentBody(
+                                isLoading = searchLoading,
+                                error = searchError,
+                                articles = searchResults,
+                                onRetry = { submitSearch() },
+                                onArticleClick = { selectedArticle = it },
+                                emptyMessage = "No posts found for \"$searchQuery\".",
+                                onTagClick = onTagClick,
+                            )
+                        }
+                    } else {
+                        when {
+                            selectedSection == 1 -> {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    FilterButton("Blog", !biteSized) { biteSized = false }
+                                    FilterButton("Bite-sized", biteSized) { biteSized = true }
+                                }
+                                ContentBody(
+                                    isLoading, error, currentArticles,
+                                    onRetry = { refreshCount++ },
+                                    onArticleClick = { selectedArticle = it },
+                                    emptyMessage = "No posts found.",
+                                    columns = articleColumns,
+                                    onTagClick = onTagClick,
+                                )
+                            }
+                            selectedSection == 4 -> {
+                                Row(
+                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    PbbSection.values().forEach { tab ->
+                                        PbbFilterButton(tab.label, pbbSection == tab) {
+                                            pbbSection = tab
+                                        }
+                                    }
+                                }
+                                PbbContent(
+                                    tab = pbbTab,
+                                    section = pbbSection,
+                                    board = board,
+                                    selectedSeason = selectedSeason,
+                                    onSeasonSelected = {
+                                        selectedSeason = it
+                                        persistPbbSeason(it)
+                                    },
+                                    onTabSelected = { pbbTab = it },
+                                    jumpToEvictions = jumpToEvictions,
+                                    onEvictionJumpCompleted = { jumpToEvictions = false },
+                                    announcements = currentArticles,
+                                    isLoading = isLoading,
+                                    error = error,
+                                    onRetry = { refreshCount++ },
+                                    onArticleClick = { selectedArticle = it },
+                                    articleColumns = articleColumns,
+                                    onTagClick = onTagClick,
+                                )
+                            }
+                            selectedSection == 0 -> HomeContent(
+                                isLoading = isLoading,
+                                error = error,
+                                newsletters = newsletterArticles,
+                                posts = currentArticles,
+                                onRetry = { refreshCount++ },
+                                onArticleClick = { selectedArticle = it },
+                                isDarkMode = darkMode,
+                                articleColumns = articleColumns,
+                                onTagClick = onTagClick,
+                            )
+                            else -> ContentBody(
                                 isLoading, error, currentArticles,
                                 onRetry = { refreshCount++ },
                                 onArticleClick = { selectedArticle = it },
-                                emptyMessage = "No posts found.",
+                                emptyMessage = "No content found.",
+                                onTagClick = onTagClick,
                             )
                         }
-                        selectedSection == 4 -> {
-                            Row(
-                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                PbbSection.values().forEach { tab ->
-                                    PbbFilterButton(tab.label, pbbSection == tab) {
-                                        pbbSection = tab
-                                    }
-                                    }
-                            }
-                            PbbContent(
-                                tab = pbbTab,
-                                section = pbbSection,
-                                board = board,
-                                selectedSeason = selectedSeason,
-                                onSeasonSelected = {
-                                    selectedSeason = it
-                                    persistPbbSeason(it)
-                                },
-                                onTabSelected = { pbbTab = it },
-                                jumpToEvictions = jumpToEvictions,
-                                onEvictionJumpCompleted = { jumpToEvictions = false },
-                                announcements = currentArticles,
-                                isLoading = isLoading,
-                                error = error,
-                                onRetry = { refreshCount++ },
-                                onArticleClick = { selectedArticle = it },
-                            )
-                        }
-                        selectedSection == 0 -> HomeContent(
-                            isLoading = isLoading,
-                            error = error,
-                            newsletters = newsletterArticles,
-                            posts = currentArticles,
-                            onRetry = { refreshCount++ },
-                            onArticleClick = { selectedArticle = it },
-                            isDarkMode = darkMode,
-                        )
-                        else -> ContentBody(
-                            isLoading, error, currentArticles,
-                            onRetry = { refreshCount++ },
-                            onArticleClick = { selectedArticle = it },
-                            emptyMessage = "No content found.",
-                        )
                     }
                 }
             }
@@ -743,24 +950,39 @@ private fun HomeContent(
     onRetry: () -> Unit,
     onArticleClick: (Article) -> Unit,
     isDarkMode: Boolean,
+    articleColumns: Int,
+    onTagClick: ((String) -> Unit)?,
 ) {
-    LazyColumn(Modifier.fillMaxSize()) {
-        item { SectionHeading("Latest Newsletter", isDarkMode, centered = true) }
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(articleColumns),
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            SectionHeading("Latest Newsletter", isDarkMode, centered = true)
+        }
         if (isLoading && newsletters.isEmpty()) {
-            item { LoadingIndicator() }
+            item(span = { GridItemSpan(maxLineSpan) }) { LoadingIndicator() }
         } else {
-            item {
-                newsletters.firstOrNull()?.let { ArticleCard(it, onArticleClick, showExcerpt = false) }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                newsletters.firstOrNull()?.let {
+                    ArticleCard(it, onArticleClick, showExcerpt = false, onTagClick = onTagClick)
+                }
                     ?: Text("No newsletters available.", Modifier.padding(16.dp))
             }
         }
-        item { SectionHeading("Latest Blog Posts", isDarkMode, centered = true) }
-        if (error != null && posts.isEmpty()) {
-            item { ErrorContent(error, onRetry) }
-        } else {
-            items(posts.take(10), key = { it.url }) { ArticleCard(it, onArticleClick) }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            SectionHeading("Latest Blog Posts", isDarkMode, centered = true)
         }
-        item { Spacer(Modifier.height(16.dp)) }
+        if (error != null && posts.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) { ErrorContent(error, onRetry) }
+        } else {
+            items(posts.take(10), key = { it.url }) {
+                ArticleCard(it, onArticleClick, onTagClick = onTagClick)
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(16.dp)) }
     }
 }
 
@@ -772,13 +994,22 @@ private fun ContentBody(
     onRetry: () -> Unit,
     onArticleClick: (Article) -> Unit,
     emptyMessage: String,
+    columns: Int = 1,
+    onTagClick: ((String) -> Unit)? = null,
 ) {
     when {
         isLoading && articles.isEmpty() -> LoadingIndicator()
         error != null && articles.isEmpty() -> ErrorContent(error, onRetry)
         articles.isEmpty() -> Text(emptyMessage, Modifier.padding(20.dp))
-        else -> LazyColumn(Modifier.fillMaxSize()) {
-            items(articles, key = { it.url }) { ArticleCard(it, onArticleClick) }
+        else -> LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(articles, key = { it.url }) {
+                ArticleCard(it, onArticleClick, onTagClick = onTagClick)
+            }
         }
     }
 }
@@ -798,11 +1029,15 @@ private fun PbbContent(
     error: String?,
     onRetry: () -> Unit,
     onArticleClick: (Article) -> Unit,
+    articleColumns: Int,
+    onTagClick: ((String) -> Unit)?,
 ) {
     if (section == PbbSection.ANNOUNCEMENTS) {
         ContentBody(
             isLoading, error, announcements, onRetry, onArticleClick,
             emptyMessage = "No announcements found.",
+            columns = articleColumns,
+            onTagClick = onTagClick,
         )
         return
     }
@@ -1463,15 +1698,20 @@ private fun ArticleDetail(
     article: Article,
     notoSerifFont: androidx.compose.ui.text.font.FontFamily,
     onBack: () -> Unit,
+    showBackButton: Boolean,
 ) {
     Column(Modifier.fillMaxSize()) {
-        TextButton(onClick = onBack) { Text("← Back") }
+        if (showBackButton) TextButton(onClick = onBack) { Text("← Back") }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             item {
                 if (article.image != null) {
                     PlatformArticleImage(
                         article = article,
-                        modifier = Modifier.fillMaxWidth().height(260.dp),
+                        modifier = if (platform() == "iOS") {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier.fillMaxWidth().height(260.dp)
+                        },
                         contentDescription = article.title,
                         onClick = null,
                     )
@@ -1485,7 +1725,7 @@ private fun ArticleDetail(
                 Spacer(Modifier.height(16.dp))
                 val html = article.contentHtml?.takeIf { it.isNotBlank() } ?: article.content
                 if (html.isNotBlank()) {
-                    HtmlArticleBody(html, notoSerifFont)
+                    HtmlArticleBody(article, html, notoSerifFont)
                 } else {
                     Text(
                         article.contentText?.takeIf { it.isNotBlank() } ?: article.excerpt,
@@ -1499,10 +1739,27 @@ private fun ArticleDetail(
 }
 
 @Composable
-private fun HtmlArticleBody(html: String, bodyFont: androidx.compose.ui.text.font.FontFamily) {
+private fun HtmlArticleBody(
+    article: Article,
+    html: String,
+    bodyFont: androidx.compose.ui.text.font.FontFamily,
+) {
     val blocks = remember(html) { htmlArticleBlocks(html) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         blocks.forEach { block ->
+            if (block.type == HtmlBlockType.IMAGE) {
+                if (platform() == "iOS") {
+                    block.imageUrl?.let { imageUrl ->
+                        PlatformArticleImage(
+                            article = article.copy(image = imageUrl),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentDescription = article.title,
+                            onClick = null,
+                        )
+                    }
+                }
+                return@forEach
+            }
             val style = when (block.type) {
                 HtmlBlockType.HEADING -> when (block.headingLevel) {
                     1 -> MaterialTheme.typography.headlineMedium
@@ -1525,6 +1782,7 @@ private fun HtmlArticleBody(html: String, bodyFont: androidx.compose.ui.text.fon
                         fontFamily = bodyFont,
                         lineHeight = 26.sp,
                     )
+                HtmlBlockType.IMAGE -> return@forEach
             }
             Text(block.text, style = style)
         }
@@ -1537,6 +1795,7 @@ private fun ArticleCard(
     onClick: (Article) -> Unit,
     showExcerpt: Boolean = true,
     isDarkMode: Boolean = isSystemInDarkTheme(),
+    onTagClick: ((String) -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
@@ -1548,7 +1807,11 @@ private fun ArticleCard(
             if (article.image != null) {
                 PlatformArticleImage(
                     article = article,
-                    modifier = Modifier.fillMaxWidth().height(190.dp),
+                    modifier = if (platform() == "iOS") {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier.fillMaxWidth().height(190.dp)
+                    },
                     contentDescription = article.title,
                     onClick = { onClick(article) },
                 )
@@ -1577,9 +1840,15 @@ private fun ArticleCard(
                     if (showExcerpt && article.excerpt.isNotBlank()) {
                         Spacer(Modifier.height(14.dp))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        article.tags.take(4).forEach { tag ->
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        article.tags.forEach { tag ->
                             Surface(
+                                modifier = Modifier.clickable(enabled = onTagClick != null) {
+                                    onTagClick?.invoke(tag)
+                                },
                                 shape = RoundedCornerShape(9.dp),
                                 color = Color(0xFF0181E5),
                             ) {
