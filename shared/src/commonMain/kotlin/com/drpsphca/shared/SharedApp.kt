@@ -408,8 +408,18 @@ fun SharedApp() {
                                 searchError = null
                                 searchResults = emptyList()
                             },
-                            icon = { SectionIcon(index, selectedSection == index) },
-                            label = { Text(item.label, maxLines = 1) },
+                            icon = { SectionIcon(index, selectedSection == index, darkMode) },
+                            label = {
+                                Text(
+                                    item.label,
+                                    maxLines = 1,
+                                    color = if (selectedSection == index) {
+                                        sectionSelectedColor(index)
+                                    } else {
+                                        if (darkMode) Color.LightGray else Color(0xFF888888)
+                                    },
+                                )
+                            },
                         )
                     }
                 }
@@ -550,7 +560,15 @@ private fun SectionLogo(index: Int) {
 }
 
 @Composable
-private fun SectionIcon(index: Int, isSelected: Boolean) {
+private fun sectionSelectedColor(index: Int): Color = when (index) {
+    1, 2 -> Color(0xFF0C7A0B)
+    3 -> Color(0xFF0050DB)
+    4 -> PhcaGold
+    else -> Color(0xFF128FF1)
+}
+
+@Composable
+private fun SectionIcon(index: Int, isSelected: Boolean, isDarkMode: Boolean) {
     val image = when (index) {
         1 -> Res.drawable.phcaapp_blog
         2 -> Res.drawable.phcaapp_newsletter
@@ -558,19 +576,16 @@ private fun SectionIcon(index: Int, isSelected: Boolean) {
         4 -> Res.drawable.phcaapp_pbb
         else -> Res.drawable.phcaapp_home
     }
-    val selectedColor = when (index) {
-        1, 2 -> Color(0xFF0C7A0B)
-        3 -> Color(0xFF0050DB)
-        4 -> PhcaGold
-        else -> Color(0xFF128FF1)
+    val tint = if (isSelected) {
+        sectionSelectedColor(index)
+    } else {
+        if (isDarkMode) Color.LightGray else Color(0xFF888888)
     }
     androidx.compose.foundation.Image(
         painter = painterResource(image),
         contentDescription = sections[index].label,
         modifier = Modifier.size(if (index == 3) 34.dp else 24.dp),
-        colorFilter = if (index == 3 || index == 4) null else ColorFilter.tint(
-            if (isSelected) selectedColor else MaterialTheme.colorScheme.onSurface,
-        ),
+        colorFilter = ColorFilter.tint(tint),
     )
 }
 
@@ -785,6 +800,7 @@ private fun ArticleDetail(
                         article = article,
                         modifier = Modifier.fillMaxWidth().height(260.dp),
                         contentDescription = article.title,
+                        onClick = null,
                     )
                     Spacer(Modifier.height(16.dp))
                 }
@@ -861,6 +877,7 @@ private fun ArticleCard(
                     article = article,
                     modifier = Modifier.fillMaxWidth().height(190.dp),
                     contentDescription = article.title,
+                    onClick = { onClick(article) },
                 )
             }
             Column(Modifier.padding(16.dp)) {

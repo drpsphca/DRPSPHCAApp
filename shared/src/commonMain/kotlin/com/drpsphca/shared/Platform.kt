@@ -13,4 +13,5 @@ expect fun PlatformArticleImage(
     article: Article,
     modifier: Modifier,
     contentDescription: String,
+    onClick: (() -> Unit)?,
 )

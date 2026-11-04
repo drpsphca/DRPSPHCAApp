@@ -2853,7 +2853,8 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
         items.forEach { screen ->
             val isSelected = currentRoute == screen.route
             val selectedColor = selectedColors[screen.route] ?: MaterialTheme.colorScheme.primary
-            val tint = if (isSelected) selectedColor else if (isDarkMode) Color.LightGray else Color(0xFF888888)
+            val unselectedColor = if (isDarkMode) Color.LightGray else Color(0xFF888888)
+            val tint = if (isSelected) selectedColor else unselectedColor
 
             NavigationBarItem(
                 selected = isSelected,
@@ -2875,18 +2876,14 @@ fun BottomNavigationBar(navController: NavController, isDarkMode: Boolean) {
                             fontFamily = Gilroy,
                             fontWeight = FontWeight.Normal
                         ),
-                        color = if (isSelected) selectedColor else if (isDarkMode) Color.LightGray else Color(0xFF888888)
+                        color = tint
                     ) 
                 },
                 icon = {
                     Icon(
                         painter = painterResource(id = screen.icon),
                         contentDescription = screen.label,
-                        tint = if (screen == Screen.TVAdListings || screen == Screen.PbbUpdates) {
-                            Color.Unspecified
-                        } else {
-                            tint
-                        },
+                        tint = tint,
                         modifier = Modifier.height(32.dp).padding(bottom = 0.dp)
                     )
                 },

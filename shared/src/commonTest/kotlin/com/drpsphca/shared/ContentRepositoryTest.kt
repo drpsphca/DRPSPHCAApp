@@ -2,6 +2,7 @@ package com.drpsphca.shared
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -16,6 +17,16 @@ class ContentRepositoryTest {
 
         assertEquals(1, posts.size)
         assertEquals("Sample", posts.single().jsonObject["title"]?.jsonObject?.get("rendered")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun reportsEmptyWordPressResponseWithEndpointContext() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            parseJsonArray("", "posts from https://drpsphca.com/wp-json/ (page 1)")
+        }
+
+        assertTrue(error.message.orEmpty().contains("https://drpsphca.com/wp-json/"))
+        assertTrue(error.message.orEmpty().contains("empty JSON response"))
     }
 
     @Test

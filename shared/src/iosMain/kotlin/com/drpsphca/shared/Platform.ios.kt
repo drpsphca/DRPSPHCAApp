@@ -4,6 +4,7 @@ package com.drpsphca.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +45,7 @@ actual fun PlatformArticleImage(
     article: Article,
     modifier: Modifier,
     contentDescription: String,
+    onClick: (() -> Unit)?,
 ) {
     var error by remember(article.image) { mutableStateOf<String?>(null) }
     val image by produceState<UIImage?>(null, article.image, article.imageAuthorization) {
@@ -76,7 +78,9 @@ actual fun PlatformArticleImage(
     }
 
     Box(
-        modifier.semantics { this.contentDescription = contentDescription },
+        modifier
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
         UIKitView(

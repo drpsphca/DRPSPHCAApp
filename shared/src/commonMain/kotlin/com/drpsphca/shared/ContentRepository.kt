@@ -12,13 +12,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -148,12 +148,12 @@ internal class ContentRepository(engine: HttpClientEngine) {
                 header(HttpHeaders.UserAgent, "com.drpsphca.app")
                 parameter("slug", slug)
                 parameter("per_page", 100)
-            }.let { parseJsonArray(it.bodyAsText()) }
+            }.let { parseJsonArray(it.bodyAsText(), "categories from ${endpoint.apiUrl}") }
             categories.firstOrNull { it.jsonObject["slug"]?.stringValue() == slug }
                 ?.jsonObject?.get("id")?.stringValue()
                 ?: error("WordPress category '$slug' was not found.")
         }
-        val pageSize = (limit ?: 100).coerceIn(1, 100)
+        val pageSize = (limit ?: 10).coerceIn(1, 10)
         val posts = mutableListOf<JsonElement>()
         var page = 1
         var totalPages: Int? = null
@@ -166,7 +166,10 @@ internal class ContentRepository(engine: HttpClientEngine) {
                 parameter("page", page)
                 categoryId?.let { parameter("categories", it) }
             }
-            val pagePosts = parseJsonArray(response.bodyAsText())
+            val pagePosts = parseJsonArray(
+                response.bodyAsText(),
+                "posts from ${endpoint.apiUrl} (page $page)",
+            )
             posts.addAll(pagePosts)
             totalPages = response.headers["X-WP-TotalPages"]?.toIntOrNull()
                 ?.coerceAtLeast(page) ?: totalPages
@@ -210,11 +213,14 @@ internal class ContentRepository(engine: HttpClientEngine) {
                 header(HttpHeaders.UserAgent, "com.drpsphca.app")
                 parameter("_embed", "1")
                 parameter("search", query)
-                parameter("per_page", 100)
+                parameter("per_page", 10)
                 parameter("page", page)
             }
             totalPages = response.headers["X-WP-TotalPages"]?.toIntOrNull()?.coerceAtLeast(page) ?: page
-            val pagePosts = parseJsonArray(response.bodyAsText())
+            val pagePosts = parseJsonArray(
+                response.bodyAsText(),
+                "search results from ${endpoint.apiUrl} (page $page)",
+            )
             posts.addAll(pagePosts)
             page++
         } while (page <= totalPages && posts.isNotEmpty())
@@ -230,8 +236,19 @@ internal class ContentRepository(engine: HttpClientEngine) {
         json.decodeFromString(client.get("https://pbbupdates.drpsphca.com/api/index.json").bodyAsText())
 }
 
-internal fun parseJsonArray(responseBody: String): JsonArray =
-    json.parseToJsonElement(responseBody).jsonArray
+internal fun parseJsonArray(
+    responseBody: String,
+    context: String = "WordPress response",
+): JsonArray {
+    require(responseBody.isNotBlank()) { "$context returned an empty JSON response." }
+    val element = try {
+        json.parseToJsonElement(responseBody)
+    } catch (exception: SerializationException) {
+        throw IllegalStateException("$context returned invalid JSON.", exception)
+    }
+    return element as? JsonArray
+        ?: error("$context returned a JSON value that is not an array.")
+}
 
 internal fun mergePbbAnnouncements(
     apiPosts: List<Article>,

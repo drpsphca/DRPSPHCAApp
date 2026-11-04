@@ -1,6 +1,7 @@
 package com.drpsphca.shared
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,12 +21,15 @@ actual fun PlatformArticleImage(
     article: Article,
     modifier: Modifier,
     contentDescription: String,
+    onClick: (() -> Unit)?,
 ) {
     SubcomposeAsyncImage(
         model = articleImageRequest(article),
         contentDescription = contentDescription,
         imageLoader = LocalPhcaImageLoader.current,
-        modifier = modifier,
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
+        ),
         contentScale = ContentScale.Crop,
         loading = { Box(contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
         error = {
