@@ -66,6 +66,17 @@ internal object WordPressEndpoints {
     )
 }
 
+internal fun availablePbbSeasonIds(board: BoardIndex): List<String> =
+    if (board.seasonList.isNotEmpty()) {
+        board.seasonList.filter { it.available && it.id in board.seasons }.map { it.id }
+    } else {
+        board.seasons.filterValues { it.season?.available == true }.keys.toList()
+    }
+
+internal fun resolvePbbSeason(board: BoardIndex, persistedSeason: String?): String =
+    persistedSeason?.takeIf { it in availablePbbSeasonIds(board) }
+        ?: availablePbbSeasonIds(board).firstOrNull().orEmpty()
+
 @Serializable
 data class BoardIndex(
     @SerialName("posts_url") val postsUrl: String? = null,

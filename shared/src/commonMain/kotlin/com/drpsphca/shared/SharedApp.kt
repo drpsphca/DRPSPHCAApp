@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.ContactSupport
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -254,15 +255,10 @@ fun SharedApp() {
                         val collab3Posts = repository.wordpressArticles(WordPressEndpoints.main, "collab3")
                         board = loadedBoard
                         pbbAnnouncements = mergePbbAnnouncements(apiPosts, collab3Posts)
-                        val availableSeasonIds = loadedBoard.seasonList
-                            .filter { it.available && it.id in loadedBoard.seasons }
-                            .map { it.id }
-                            .ifEmpty {
-                                loadedBoard.seasons.filterValues { it.season?.available == true }.keys.toList()
-                            }
-                        if (selectedSeason !in availableSeasonIds) {
-                            selectedSeason = availableSeasonIds.firstOrNull().orEmpty()
-                            if (selectedSeason.isNotBlank()) persistPbbSeason(selectedSeason)
+                        val resolvedSeason = resolvePbbSeason(loadedBoard, selectedSeason)
+                        if (selectedSeason != resolvedSeason) {
+                                selectedSeason = resolvedSeason
+                                if (selectedSeason.isNotBlank()) persistPbbSeason(selectedSeason)
                         }
                     }
                 }
@@ -818,13 +814,7 @@ private fun PbbContent(
         ErrorContent(error, onRetry)
         return
     }
-    val seasonKeys = board?.seasonList
-        ?.filter { it.available && it.id in board?.seasons.orEmpty() }
-        ?.map { it.id }
-        ?.ifEmpty { null }
-        ?: board?.seasons.orEmpty()
-            .filterValues { it.season?.available == true }
-            .keys.toList()
+    val seasonKeys = board?.let(::availablePbbSeasonIds).orEmpty()
     val effectiveSeason = selectedSeason.takeIf { it in seasonKeys } ?: seasonKeys.firstOrNull()
     val pack = effectiveSeason?.let { board?.seasons?.get(it) }
     val sortedTallies = pack?.nominationTallies.orEmpty()
@@ -920,10 +910,18 @@ private fun PbbContent(
             item {
                 pack?.season?.let { info ->
                     PbbPanel("Season Overview", Color(0xFFE8F5E9)) {
-                        Text(
-                            info.title ?: seasonLabel(effectiveSeason, info, board?.seasonList),
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                info.title ?: seasonLabel(effectiveSeason, info, board?.seasonList),
+                                modifier = Modifier.weight(1f),
+                                fontWeight = FontWeight.Bold,
+                            )
+                            PbbSeasonStatusChip(info.status)
+                        }
                         Text(
                             listOfNotNull(
                                 info.status?.let(::statusLabel),
@@ -942,14 +940,16 @@ private fun PbbContent(
         }
         when (tab) {
             PbbTab.OVERVIEW -> {
-                pack?.let { seasonPack ->
+                if (pack == null) {
+                    item { PbbComingSoonCard() }
+                } else {
+                    val seasonPack = pack
                     item {
                         PbbEvictionDeskCard(seasonPack, latestEviction, effectiveSeason)
                     }
-                }
-                latestTally?.let { tally ->
-                    item {
-                        PbbPanel(
+                    latestTally?.let { tally ->
+                        item {
+                            PbbPanel(
                             "Latest Nomination Tally: ${tally.title ?: "Week ${tally.week ?: 1}"}",
                             Color(0xFFE1F5FE),
                         ) {
@@ -969,12 +969,12 @@ private fun PbbContent(
                                         }
                                     }
                                 }
+                            }
                         }
                     }
-                }
-                if (sortedTasks.isNotEmpty()) {
-                    item {
-                        PbbPanel("Weekly Tasks", Color(0xFFF3E5F5)) {
+                    if (sortedTasks.isNotEmpty()) {
+                        item {
+                            PbbPanel("Weekly Tasks", Color(0xFFF3E5F5)) {
                             sortedTasks.take(4).forEach { task ->
                                 Row(
                                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -993,10 +993,9 @@ private fun PbbContent(
                                     PbbStatusChip(task.status ?: "pending")
                                 }
                             }
+                            }
                         }
                     }
-                }
-                pack?.let { seasonPack ->
                     item { SectionHeading("Housemates", centered = true) }
                     items(
                         seasonPack.housemates.sortedBy { it.place ?: Int.MAX_VALUE }.take(6),
@@ -1012,15 +1011,16 @@ private fun PbbContent(
                 }
             }
             PbbTab.HOUSEMATES -> {
-                item { SectionHeading("Housemates", centered = true) }
                 if (pack?.housemates.isNullOrEmpty()) {
-                    item { PbbEmptyState("Housemate details are coming soon.") }
-                }
-                items(pack?.housemates.orEmpty(), key = { it.id }) { housemate ->
-                    HousemateCard(
-                        housemate,
-                        effectiveSeason?.let { housematePhotoUrl(it, pack?.photos?.get(housemate.id)) },
-                    )
+                    item { PbbComingSoonCard() }
+                } else {
+                    item { SectionHeading("Housemates", centered = true) }
+                    items(pack.housemates, key = { it.id }) { housemate ->
+                        HousemateCard(
+                            housemate,
+                            effectiveSeason?.let { housematePhotoUrl(it, pack.photos[housemate.id]) },
+                        )
+                    }
                 }
             }
             PbbTab.NOMINATIONS -> {
@@ -1173,6 +1173,52 @@ private fun PbbEmptyState(message: String) {
 }
 
 @Composable
+private fun PbbComingSoonCard() {
+    val darkMode = isSystemInDarkTheme()
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 24.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (darkMode) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF2F2F2),
+        ),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(Icons.Filled.Info, contentDescription = "Coming Soon", tint = PhcaGold, modifier = Modifier.size(48.dp))
+            Spacer(Modifier.height(12.dp))
+            Text("Coming Soon", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Data for this season will be available upon official announcement.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PbbSeasonStatusChip(status: String?) {
+    val color = when (status?.lowercase()) {
+        "live" -> Color(0xFF2E7D32)
+        "finished", "ended" -> Color(0xFF0D47A1)
+        else -> Color(0xFFE65100)
+    }
+    Surface(color = color, shape = RoundedCornerShape(12.dp)) {
+        Text(
+            status?.takeIf { it.isNotBlank() }?.let(::statusLabel) ?: "UPCOMING",
+            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
+}
+
+@Composable
 private fun PbbStatusChip(status: String) {
     val color = statusColor(status)
     Surface(shape = RoundedCornerShape(8.dp), color = color) {
@@ -1192,7 +1238,7 @@ private fun PbbEvictionDeskCard(pack: SeasonPack, eviction: Eviction?, seasonId:
     val deskState = eviction?.deskState?.lowercase().orEmpty()
     val hasNominees = eviction?.nominated?.isNotEmpty() == true
     val votingOpen = pack.season?.votingOpen == true
-    val showsDesk = hasNominees && (votingOpen || deskState in setOf(
+    val showsDesk = (hasNominees || deskState == "started") && (votingOpen || deskState in setOf(
         "started",
         "partial",
         "eviction_night",
@@ -1218,7 +1264,13 @@ private fun PbbEvictionDeskCard(pack: SeasonPack, eviction: Eviction?, seasonId:
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            eviction?.nominated.orEmpty().forEachIndexed { index, nominee ->
+            val nominees = eviction?.nominated.orEmpty()
+            val deskNominees = if (deskState == "started") {
+                (0 until 4).map { nominees.getOrNull(it) ?: EvictionNominee() }
+            } else {
+                nominees
+            }
+            deskNominees.forEachIndexed { index, nominee ->
                 val housemate = pack.housemates.firstOrNull { it.id == nominee.id }
                 val name = when {
                     deskState == "started" -> "Housemate ${('A'.code + index).toChar()}"

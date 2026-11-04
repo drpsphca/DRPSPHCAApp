@@ -3,7 +3,7 @@ import FirebaseMessaging
 import UIKit
 import UserNotifications
 
-final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     private let routeDefaultsKey = "pbb_updates.pending_notification_route"
     private let topics = [
         "announcements",
@@ -20,7 +20,7 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        configureFirebase()
+        guard configureFirebase() else { return true }
 
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             if let error {
@@ -36,14 +36,8 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        guard FirebaseApp.app() != nil else { return }
         Messaging.messaging().apnsToken = deviceToken
-    }
-
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard fcmToken != nil else {
-            NSLog("Firebase Messaging did not provide an FCM registration token.")
-            return
-        }
     }
 
     func userNotificationCenter(
@@ -79,20 +73,20 @@ final class PBBNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
         completionHandler()
     }
 
-    private func configureFirebase() {
+    private func configureFirebase() -> Bool {
         guard Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil else {
             NSLog("Firebase Messaging is not configured: GoogleService-Info.plist is missing from the iOS app target.")
-            return
+            return false
         }
 
         FirebaseApp.configure()
-        Messaging.messaging().delegate = self
         for topic in topics {
             Messaging.messaging().subscribe(toTopic: topic) { error in
                 if let error {
                     NSLog("Firebase topic subscription failed for %@: %@", topic, error.localizedDescription)
                 }
             }
+            return true
         }
     }
 }

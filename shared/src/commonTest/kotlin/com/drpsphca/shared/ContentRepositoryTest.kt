@@ -205,6 +205,52 @@ class ContentRepositoryTest {
     }
 
     @Test
+    fun selectsFirstAvailablePbbSeasonAndRestoresPersistedChoice() {
+        val index = Json.decodeFromString<BoardIndex>(
+            """
+                {
+                  "season_list": [
+                    {"id":"unavailable","label":"Unavailable","available":false},
+                    {"id":"gen11","label":"Gen 11","available":true},
+                    {"id":"collab3","label":"Collab 3.0","available":true}
+                  ],
+                  "seasons": {
+                    "unavailable": {"season":{}},
+                    "gen11": {"season":{}},
+                    "collab3": {"season":{}}
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf("gen11", "collab3"), availablePbbSeasonIds(index))
+        assertEquals("gen11", resolvePbbSeason(index, null))
+        assertEquals("collab3", resolvePbbSeason(index, "collab3"))
+        assertEquals("gen11", resolvePbbSeason(index, "unavailable"))
+    }
+
+    @Test
+    fun parsesPbbAnnouncementContentFromPostsEndpoint() {
+        val posts = Json.decodeFromString<List<Article>>(
+            """
+                [{
+                  "title":"PBB announcement",
+                  "date":"2026-11-04",
+                  "url":"https://pbbupdates.drpsphca.com/announcements/sample",
+                  "excerpt":"Short summary",
+                  "featured_image":"https://example.com/featured.png",
+                  "content_html":"<p>Full announcement body.</p>",
+                  "content_text":"Full announcement body."
+                }]
+            """.trimIndent(),
+        )
+
+        assertEquals("Short summary", posts.single().excerpt)
+        assertEquals("https://example.com/featured.png", posts.single().image)
+        assertEquals("<p>Full announcement body.</p>", posts.single().contentHtml)
+    }
+
+    @Test
     fun preservesHtmlHeadingsParagraphsInlineStylesLinksAndLists() {
         val blocks = htmlArticleBlocks(
             """

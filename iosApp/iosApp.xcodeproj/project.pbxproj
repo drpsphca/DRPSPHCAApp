@@ -85,6 +85,9 @@
 			);
 			dependencies = (
 			);
+			packageProductDependencies = (
+				A90000000000000000000001 /* FirebaseMessaging */,
+			);
 			name = iosApp;
 			productName = iosApp;
 			productReference = A20000000000000000000003 /* iosApp.app */;
@@ -101,6 +104,11 @@
 				TargetAttributes = {
 					A50000000000000000000001 = {
 						CreatedOnToolsVersion = 27.0;
+						SystemCapabilities = {
+							com.apple.Push = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -114,6 +122,9 @@
 			);
 			mainGroup = A40000000000000000000001;
 			productRefGroup = A40000000000000000000003 /* Products */;
+			packageReferences = (
+				A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -162,6 +173,7 @@
 			files = (
 				A10000000000000000000001 /* ContentView.swift in Sources */,
 				A10000000000000000000002 /* iosApp.swift in Sources */,
+				A10000000000000000000005 /* PBBNotificationDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -194,6 +206,7 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -212,6 +225,7 @@
 				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -244,6 +258,19 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		A90000000000000000000001 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		A90000000000000000000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
 		};
 /* End XCConfigurationList section */
 	};
