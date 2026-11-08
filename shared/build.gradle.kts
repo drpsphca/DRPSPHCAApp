@@ -74,12 +74,6 @@ kotlin {
     // https://developer.android.com/kotlin/multiplatform/migrate
     val xcfName = "sharedKit"
 
-    iosX64 {
-        binaries.framework {
-            baseName = xcfName
-        }
-    }
-
     iosArm64 {
         binaries.framework {
             baseName = xcfName
@@ -102,13 +96,13 @@ kotlin {
             kotlin.srcDir(wordpressAuthConfig)
             dependencies {
                 implementation(libs.kotlin.stdlib)
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.animation)
-                implementation(compose.material3)
-                implementation(compose.materialIconsExtended)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
+                implementation(libs.composeRuntime)
+                implementation(libs.composeFoundation)
+                implementation(libs.composeAnimation)
+                implementation(libs.composeMaterial3)
+                implementation(libs.composeMaterialIconsExtended)
+                implementation(libs.composeUi)
+                implementation(libs.composeResources)
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)

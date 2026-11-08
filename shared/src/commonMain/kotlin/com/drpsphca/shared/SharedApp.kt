@@ -169,6 +169,7 @@ private enum class PbbTab(val label: String) {
 }
 private enum class PbbSection(val label: String) { LIVE("Live Updates"), ANNOUNCEMENTS("Announcements") }
 
+@OptIn(coil3.annotation.ExperimentalCoilApi::class)
 @Composable
 fun SharedApp() {
     val context = LocalPlatformContext.current
