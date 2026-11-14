@@ -234,7 +234,7 @@ class PbbUpdatesWidget : GlanceAppWidget() {
                                     fontWeight = FontWeight.Bold
                                 )
                             )
-                            latestEviction?.nominated?.take(4)?.forEach { nominee ->
+                            latestEviction?.nominated?.forEach { nominee ->
                                 val name = nominee.label ?: nominee.id ?: "Housemate"
                                 Text(
                                     text = "$name: 0.00%",
@@ -253,7 +253,7 @@ class PbbUpdatesWidget : GlanceAppWidget() {
                                     fontWeight = FontWeight.Bold
                                 )
                             )
-                            latestEviction?.nominated?.take(4)?.forEach { nominee ->
+                            latestEviction?.nominated?.forEach { nominee ->
                                 val name = nominee.label ?: nominee.id ?: "Housemate"
                                 val percent = formatEvictionPercent(nominee.percent)
                                 Text(
@@ -273,7 +273,7 @@ class PbbUpdatesWidget : GlanceAppWidget() {
                                     fontWeight = FontWeight.Bold
                                 )
                             )
-                            latestEviction?.nominated?.take(4)?.forEach { nominee ->
+                            latestEviction?.nominated?.forEach { nominee ->
                                 val hm = seasonPack.housemates.find { it.id == nominee.id }
                                 val name = hm?.displayName ?: hm?.name ?: nominee.id ?: "Housemate"
                                 val percent = formatEvictionPercent(nominee.percent)
@@ -301,7 +301,7 @@ class PbbUpdatesWidget : GlanceAppWidget() {
                 // Item 4: Latest Nomination Tally
                 item {
                     Spacer(GlanceModifier.height(4.dp))
-                    val nominatedEntries = latestTally?.entries?.filter { it.state.equals("nominated", ignoreCase = true) }?.take(4) ?: emptyList()
+                    val nominatedEntries = latestTally?.entries?.filter { it.state.equals("nominated", ignoreCase = true) } ?: emptyList()
                     Column(
                         modifier = GlanceModifier
                             .fillMaxWidth()

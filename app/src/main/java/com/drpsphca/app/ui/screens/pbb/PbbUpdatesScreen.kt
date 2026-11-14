@@ -1034,7 +1034,7 @@ fun PbbHousemateItemCard(
 
             Column(horizontalAlignment = Alignment.End) {
                 val statusText = statusLabel(housemate.status)
-                val statusBg = getStatusColor(housemate.status)
+                val (statusBg, statusTextColor) = getStatusColors(housemate.status, isDarkMode)
                 Surface(
                     color = statusBg,
                     shape = RoundedCornerShape(8.dp)
@@ -1044,7 +1044,7 @@ fun PbbHousemateItemCard(
                         fontFamily = Gilroy,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = Color.White,
+                        color = statusTextColor,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -1552,10 +1552,11 @@ fun formatHousemateFullName(name: String?, displayName: String?, id: String): St
 }
 
 fun statusLabel(status: String?): String {
-    return status.orEmpty()
-        .replace('_', ' ')
-        .trim()
-        .uppercase(Locale.ROOT)
+    val clean = status.orEmpty().replace('_', ' ').trim()
+    if (clean.equals("houseguest", ignoreCase = true) || clean.equals("house guest", ignoreCase = true)) {
+        return "HOUSE GUEST"
+    }
+    return clean.uppercase(Locale.ROOT)
 }
 
 fun formatEvictionPercent(percent: Double?): String {
@@ -1619,13 +1620,27 @@ fun formatPbbPublishedDate(rawDate: String?): String {
 }
 
 fun getStatusColor(status: String?): Color {
-    return when (status?.lowercase()) {
-        "safe", "saved", "passed", "success", "winner" -> Color(0xFF2E7D32) // safe green
-        "nominated", "yellow", "pending" -> Color(0xFFF57F17) // nominated yellow
-        "evicted", "red", "failed" -> Color(0xFFC62828) // evicted red
-        "not_nominated", "blue" -> Color(0xFF0D47A1) // blue
+    val clean = status?.lowercase(Locale.ROOT)?.replace('_', ' ')?.trim() ?: ""
+    return when {
+        clean == "houseguest" || clean == "house guest" -> Color(0xFF5E35B1)
+        clean in listOf("safe", "saved", "passed", "success", "winner") -> Color(0xFF2E7D32) // safe green
+        clean in listOf("nominated", "yellow", "pending") -> Color(0xFFF57F17) // nominated yellow
+        clean in listOf("evicted", "red", "failed") -> Color(0xFFC62828) // evicted red
+        clean in listOf("not_nominated", "blue") -> Color(0xFF0D47A1) // blue
         else -> Color(0xFF0277BD)
     }
+}
+
+fun getStatusColors(status: String?, isDarkMode: Boolean): Pair<Color, Color> {
+    val clean = status?.lowercase(Locale.ROOT)?.replace('_', ' ')?.trim() ?: ""
+    if (clean == "houseguest" || clean == "house guest") {
+        return if (isDarkMode) {
+            Color(0xFF1A1228) to Color(0xFFB39DDB)
+        } else {
+            Color(0xFFE8E0F5) to Color(0xFF5E35B1)
+        }
+    }
+    return getStatusColor(status) to Color.White
 }
 
 fun getNominationStateColor(state: String?): Color {

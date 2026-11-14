@@ -14,7 +14,7 @@ okhttp = "5.5.1"
 kotlinxCoroutinesAndroid = "1.11.0"
 kotlinStdlib = "2.4.21"
 kotlinTest = "2.3.0"
-composeMultiplatform = "1.7.3"
+composeMultiplatform = "1.12.2"
 ktor = "3.6.1"
 serialization = "1.12.0"
 coil = "3.6.3"
@@ -60,7 +60,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 composeRuntime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "composeMultiplatform" }
 composeFoundation = { group = "org.jetbrains.compose.foundation", name = "foundation", version.ref = "composeMultiplatform" }
 composeAnimation = { group = "org.jetbrains.compose.animation", name = "animation", version.ref = "composeMultiplatform" }
-composeMaterial3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "composeMultiplatform" }
+composeMaterial3 = { group = "org.jetbrains.compose.material3", name = "material3", version = "1.9.0" }
 composeMaterialIconsExtended = { group = "org.jetbrains.compose.material", name = "material-icons-extended", version = "1.7.3" }
 composeUi = { group = "org.jetbrains.compose.ui", name = "ui", version.ref = "composeMultiplatform" }
 composeResources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeMultiplatform" }

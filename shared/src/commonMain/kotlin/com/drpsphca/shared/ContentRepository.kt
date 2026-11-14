@@ -493,7 +493,7 @@ internal fun parseWordPressPosts(
     }
 
 internal fun parseRss(xml: String): List<Article> {
-    val itemPattern = Regex("<item\\b[^>]*>(.*?)</item>", RegexOption.DOT_MATCHES_ALL)
+    val itemPattern = Regex("(?s)<item\\b[^>]*>(.*?)</item>")
     return itemPattern.findAll(xml).mapNotNull { item ->
         val content = item.groupValues[1]
         val title = xmlValue(content, "title").cleanHtml()
@@ -509,7 +509,7 @@ internal fun parseRss(xml: String): List<Article> {
             content = html,
             image = Regex("""<img[^>]+src=["']([^"']+)""", RegexOption.IGNORE_CASE)
                 .find(html)?.groupValues?.get(1),
-            tags = Regex("<category(?:\\s[^>]*)?>(.*?)</category>", RegexOption.DOT_MATCHES_ALL)
+            tags = Regex("(?s)<category(?:\\s[^>]*)?>(.*?)</category>")
                 .findAll(content)
                 .map { xmlValue(it.value, "category").cleanHtml() }
                 .filter { it.isNotBlank() }
@@ -520,10 +520,8 @@ internal fun parseRss(xml: String): List<Article> {
 
 private fun xmlValue(xml: String, tag: String): String {
     val escapedTag = Regex.escape(tag)
-    val raw = Regex(
-        "<$escapedTag(?:\\s[^>]*)?>(.*?)</$escapedTag>",
-        setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
-    ).find(xml)?.groupValues?.get(1).orEmpty().trim()
+    val raw = Regex("(?si)<$escapedTag(?:\\s[^>]*)?>(.*?)</$escapedTag>")
+        .find(xml)?.groupValues?.get(1).orEmpty().trim()
     return if (raw.startsWith("<![CDATA[") && raw.endsWith("]]>")) {
         raw.removePrefix("<![CDATA[").removeSuffix("]]>").trim()
     } else {
